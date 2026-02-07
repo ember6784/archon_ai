@@ -1,187 +1,176 @@
-# Archon AI - Next Session Plan
+# Archon AI - Development Plan
 
 **Last Updated:** 2026-02-07
-**Project Status:** MAT Integration Complete
+**Project Status:** Phase 2 Complete - RBAC, Audit, FastAPI implemented
 
 ---
 
 ## Completed Tasks
 
-### Phase 1: MAT Integration (COMPLETED)
+### Phase 1: MAT Integration ✅
 
-The following components have been successfully copied and adapted from `E:/multi_agent_team/` to `E:/archon_ai/mat/`:
+| Component | File | Lines |
+|-----------|------|-------|
+| Circuit Breaker | `mat/circuit_breaker.py` | ~450 |
+| Siege Mode | `mat/siege_mode.py` | ~600 |
+| Project Curator | `mat/project_curator.py` | ~400 |
+| Debate Pipeline | `mat/debate_pipeline.py` | ~250 |
+| Agent Scoreboard | `mat/agent_scoreboard.py` | ~450 |
+| Agency Templates | `mat/agency_templates/` | ~500 |
+| Package Exports | `mat/__init__.py` | ~140 |
 
-1. **Circuit Breaker** (`mat/circuit_breaker.py`) ✅
-   - 4-level autonomy system (GREEN/AMBER/RED/BLACK)
-   - `OperationType` for permission checking
-   - `require_autonomy_level` decorator
-   - State persistence to JSON
+### Phase 2: Enterprise Layer ✅
 
-2. **Siege Mode** (`mat/siege_mode.py`) ✅
-   - Full autonomy when host is offline
-   - `VirtualCTOReport` for debriefing
-   - Background task execution
-   - Integration with Circuit Breaker
+| Component | File | Lines |
+|-----------|------|-------|
+| RBAC System | `enterprise/rbac.py` | ~600 |
+| Audit Logger | `enterprise/audit_logger.py` | ~550 |
+| FastAPI Server | `enterprise/api/main.py` | ~500 |
+| API Init | `enterprise/api/__init__.py` | ~10 |
+| **Total Phase 2** | | **~2,160** |
 
-3. **Project Curator** (`mat/project_curator.py`) ✅
-   - Simplified version without heavy dependencies
-   - `TaskQueue` for managing work
-   - `WorkPlan` generation
-   - Agent selection from templates
+### Phase 0: Foundation ✅ (from previous session)
 
-4. **Debate Pipeline** (`mat/debate_pipeline.py`) ✅
-   - Simplified implementation
-   - Phases: DRAFT -> SIEGE -> FORTIFY -> JUDGMENT
-   - Integration with agency_templates
-   - Stub for LLM integration (to be completed)
+| Component | File | Lines |
+|-----------|------|-------|
+| Execution Contract | `enterprise/execution_contract.py` | ~550 |
+| Event Bus | `enterprise/event_bus.py` | ~250 |
+| Gateway Bridge | `enterprise/gateway_bridge.py` | ~300 |
+| Config | `enterprise/config.py` | ~150 |
+| Docker | `deploy/docker/*` | ~500 |
 
-5. **Agent Scoreboard** (`mat/agent_scoreboard.py`) ✅
-   - Performance metrics tracking
-   - Auto-disable for low performers
-   - History persistence to JSONL
+---
 
-6. **Agency Templates** (`mat/agency_templates/`) ✅
-   - `safety_core.txt` - Immutable genetic code
-   - `template_loader.py` - Load and validate roles
-   - `roles/` - 6 role templates (base, security_expert, performance_guru, database_architect, ux_researcher, devops_engineer)
-   - `index.json` - Template registry
-   - Vaccination system for agent safety
+## Total Project Status
 
-7. **Package Exports** (`mat/__init__.py`) ✅
-   - All components properly exported
-   - Clean API for importing
+```
+Files:     43
+Lines:      ~12,200
+Commits:    2
+Branch:     main
+```
 
 ---
 
 ## Pending Tasks
 
-### Phase 2: RBAC System (PRIORITY: P0)
-
-Create `enterprise/rbac.py`:
-
-```python
-class Role(Enum):
-    SUPER_ADMIN = "super_admin"      # Full access
-    TENANT_ADMIN = "tenant_admin"    # Tenant management
-    DEVELOPER = "developer"           # Code execution
-    ANALYST = "analyst"              # Read-only
-    EXTERNAL = "external"             # Limited access
-
-class Permission(Enum):
-    AGENT_EXECUTE = "agent.execute"
-    AGENT_MONITOR = "agent.monitor"
-    CODE_READ = "code.read"
-    CODE_WRITE = "code.write"
-    CODE_DEPLOY = "code.deploy"
-
-def check_permission(user_id: str, permission: Permission) -> bool
-def assign_role(user_id: str, role: Role)
-```
-
-### Phase 3: Audit Logger (PRIORITY: P1)
-
-Create `enterprise/audit_logger.py`:
-
-- Append-only logs with hash chaining
-- SOC2/GDPR compliant (7-year retention)
-- Subscribe to all EventBus events
-- Immutable log records
-
-### Phase 4: FastAPI Server (PRIORITY: P0)
-
-Create `enterprise/api/main.py`:
-
-**Endpoints:**
-- `GET /health` - Health check
-- `GET /api/v1/circuit_breaker/status` - Get autonomy level
-- `POST /api/v1/circuit_breaker/record_activity` - Record human activity
-- `POST /api/v1/siege/activate` - Activate Siege Mode
-- `POST /api/v1/siege/deactivate` - Deactivate Siege Mode
-- `GET /api/v1/siege/report` - Get Virtual CTO report
-- `GET /api/v1/curator/status` - Get Curator status
-- `POST /api/v1/debate/start` - Start a debate
-- `GET /api/v1/scoreboard/stats` - Get agent metrics
-
-### Phase 5: LLM Integration (PRIORITY: P1)
+### Phase 3: LLM Integration (PRIORITY: P1)
 
 Enhance `mat/debate_pipeline.py`:
-- Connect to LLM router (14 models across 7 providers)
-- Implement actual Builder/Skeptic/Auditor prompts
-- Integrate with agency_templates for role selection
+- [ ] Connect to LLM router (14 models across 7 providers)
+- [ ] Implement actual Builder/Skeptic/Auditor prompts
+- [ ] Integrate with agency_templates for role selection
+- [ ] Add streaming responses
 
-### Phase 6: Integration Testing (PRIORITY: P1)
+### Phase 4: Integration Testing (PRIORITY: P1)
 
-Create `tests/integration/test_mat_integration.py`:
-- Test message flow: RBAC → Contract → Debate → Execution → Audit
-- Test Siege Mode activation
-- Test contract violations blocking
-- Test multi-tenant isolation
+Create `tests/integration/`:
+- [ ] Test message flow: RBAC → Contract → Debate → Execution → Audit
+- [ ] Test Siege Mode activation
+- [ ] Test contract violations blocking
+- [ ] Test multi-tenant isolation
+
+### Phase 5: Documentation (PRIORITY: P2)
+
+- [ ] API documentation (OpenAPI/Swagger)
+- [ ] Architecture diagrams
+- [ ] Deployment guide
+- [ ] Development setup guide
 
 ---
 
-## Architecture Overview
+## API Endpoints
+
+### Health & Status
+- `GET /` - Root endpoint
+- `GET /health` - Health check
+
+### Circuit Breaker
+- `GET /api/v1/circuit_breaker/status` - Get autonomy level
+- `POST /api/v1/circuit_breaker/record_activity` - Record human activity
+- `GET /api/v1/circuit_breaker/history` - Get transition history
+
+### Siege Mode
+- `GET /api/v1/siege/status` - Get Siege Mode status
+- `POST /api/v1/siege/activate` - Activate Siege Mode
+- `POST /api/v1/siege/deactivate` - Deactivate Siege Mode
+- `GET /api/v1/siege/report` - Get Virtual CTO report
+
+### Project Curator
+- `GET /api/v1/curator/status` - Get Curator status
+
+### Debate Pipeline
+- `POST /api/v1/debate/start` - Start a debate
+
+### Agent Scoreboard
+- `GET /api/v1/scoreboard/stats` - Get statistics
+- `GET /api/v1/scoreboard/agents/{agent_id}` - Get agent metrics
+
+### RBAC
+- `GET /api/v1/rbac/roles` - List all roles and permissions
+- `POST /api/v1/rbac/assign` - Assign role to user
+- `GET /api/v1/rbac/users/{user_id}` - Get user roles
+
+### Audit
+- `GET /api/v1/audit/events` - Query audit log
+- `GET /api/v1/audit/verify` - Verify audit chain integrity
+
+---
+
+## Quick Start
+
+```bash
+# Clone repository
+git clone https://github.com/ember6784/archon_ai.git
+cd archon_ai
+
+# Install dependencies
+pip install fastapi uvicorn
+
+# Run API server
+uvicorn enterprise.api.main:app --reload --host 0.0.0.0 --port 8000
+
+# Access API
+# - http://localhost:8000
+# - http://localhost:8000/docs (Swagger UI)
+# - http://localhost:8000/redoc (ReDoc)
+```
+
+---
+
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    CHANNELS (OpenClaw)                      │
-│  WhatsApp │ Telegram │ Slack │ Discord │ Signal │ Teams    │
+│                       FASTAPI LAYER                        │
+│  REST API │ WebSocket │ CORS │ Middleware                  │
 └──────────────────────────────┬──────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                     ENTERPRISE LAYER                        │
-│  RBAC │ Audit │ Multi-tenancy │ SSO │ Compliance            │
+│  RBAC │ Audit Logger │ Execution Contract │ Event Bus       │
 └──────────────────────────────┬──────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    MAT LAYER (NEW!)                         │
+│                        MAT LAYER                           │
 │  CircuitBreaker │ SiegeMode │ ProjectCurator │ DebatePipeline│
-│  AgentScoreboard │ AgencyTemplates (safety_core.txt)        │
+│  AgentScoreboard │ AgencyTemplates (Safety Core)            │
 └──────────────────────────────┬──────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                 EXECUTION LAYER (Enterprise)                │
-│  Execution Contract │ Event Bus │ Gateway Bridge            │
+│  Gateway Bridge │ OpenClaw Integration │ Seccomp Profiles   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Quick Start Commands
+## Next Session Goals
 
-```bash
-# Install dependencies
-cd E:/archon_ai
-pip install -e .
-
-# Test imports
-python -c "from mat import CircuitBreaker, SiegeMode, ProjectCurator, DebatePipeline; print('OK')"
-
-# Run main service
-python -m enterprise.main
-
-# Run tests
-pytest tests/ -v
-```
-
----
-
-## Next Session Priorities
-
-1. **RBAC System** - Create `enterprise/rbac.py`
-2. **Audit Logger** - Create `enterprise/audit_logger.py`
-3. **FastAPI Server** - Create `enterprise/api/main.py`
-4. **LLM Integration** - Connect DebatePipeline to LLM router
-5. **Integration Tests** - Test full stack
-
----
-
-## Notes
-
-- All MAT components are now in `E:/archon_ai/mat/`
-- Agency templates include Safety Core vaccination
-- Circuit Breaker state persists to `data/circuit_breaker_state.json`
-- Siege Mode generates Virtual CTO reports
-- Debate Pipeline is simplified - needs LLM integration
+1. **LLM Integration** - Connect DebatePipeline to LLM providers
+2. **Integration Tests** - Test full message flow
+3. **API Documentation** - Enhance OpenAPI specs
+4. **Deployment** - Docker compose testing
