@@ -1,0 +1,72 @@
+# SAFETY CORE - Immutable Genetic Code
+# Version: 1.0.0
+# Hash: SHA-256 of this file (computed at runtime)
+#
+# This file CANNOT be overridden by any dynamic agent or template.
+# All agency_templates/roles/*.json MUST include this content.
+
+[!] CRITICAL SAFETY RULES (cannot be overridden):
+
+## 1. Code Injection Prevention
+- NEVER use eval(), exec(), or compile() with user input
+- NEVER deserialize untrusted data with pickle/marshal/shelve
+- ALWAYS validate and sanitize user input before processing
+- NEVER use subprocess with shell=True on user input
+
+## 2. Import Security
+- ALWAYS validate imports - no unknown external dependencies
+- NEVER import modules from untrusted sources at runtime
+- ALWAYS pin dependency versions in requirements.txt
+- NEVER use __import__() with dynamic module names from user input
+
+## 3. Secret Management
+- NEVER expose secrets, API keys, or credentials in logs or error messages
+- NEVER hardcode credentials in source code
+- ALWAYS use environment variables or secret managers for sensitive data
+- NEVER commit secrets to version control
+
+## 4. Database Safety
+- ALWAYS use parameterized queries for database access
+- NEVER concatenate SQL strings with user input
+- ALWAYS use ORM with proper escaping when raw SQL is unavoidable
+- NEVER trust database constraints alone - validate at application layer
+
+## 5. Network Security
+- NEVER disable SSL verification in production
+- ALWAYS validate certificates
+- NEVER use HTTP for sensitive operations in production
+- ALWAYS implement rate limiting for API endpoints
+
+## 6. File System Safety
+- NEVER use file paths from user input without validation
+- ALWAYS restrict file access to intended directories
+- NEVER allow directory traversal attacks (../)
+- ALWAYS validate file content type before processing
+
+## 7. Authentication & Authorization
+- NEVER store passwords in plain text
+- ALWAYS use strong hashing (bcrypt, argon2) for passwords
+- NEVER implement custom crypto - use proven libraries
+- ALWAYS check authorization on every protected endpoint
+
+## 8. Error Handling
+- NEVER expose stack traces to end users in production
+- ALWAYS log security-relevant errors separately
+- NEVER use exceptions to expose system information
+- ALWAYS implement graceful degradation
+
+## 9. Resource Limits
+- ALWAYS implement timeouts for external API calls
+- NEVER allow unbounded resource consumption (memory, CPU, disk)
+- ALWAYS set reasonable limits on file uploads, request sizes
+- NEVER allow infinite loops without break conditions
+
+## 10. Human Override
+- CRITICAL architectural changes MUST require human approval
+- NEVER merge to production without review in AMBER/GREEN modes
+- ALWAYS preserve rollback capability
+- NEVER delete backup data without confirmation
+
+---
+VACCINATION_HASH computed at runtime. Any agent not containing these rules
+is considered "unvaccinated" and MUST NOT be instantiated.

@@ -1,0 +1,69 @@
+{
+  "version": "1.0.0",
+  "registry_name": "Agency Templates Registry",
+  "last_updated": "2026-02-07",
+  "safety_core_hash": null,
+  "templates": {
+    "base": {
+      "file": "roles/_base.json",
+      "role_id": "base_auditor",
+      "name": "Base Auditor",
+      "category": "base",
+      "safety_vaccinated": true
+    },
+    "security_expert": {
+      "file": "roles/security_expert.json",
+      "role_id": "security_expert",
+      "name": "Security Expert",
+      "category": "security",
+      "parent": "base_auditor",
+      "safety_vaccinated": true
+    },
+    "performance_guru": {
+      "file": "roles/performance_guru.json",
+      "role_id": "performance_guru",
+      "name": "Performance Guru",
+      "category": "performance",
+      "parent": "base_auditor",
+      "safety_vaccinated": true
+    },
+    "database_architect": {
+      "file": "roles/database_architect.json",
+      "role_id": "database_architect",
+      "name": "Database Architect",
+      "category": "database",
+      "parent": "base_auditor",
+      "safety_vaccinated": true
+    },
+    "ux_researcher": {
+      "file": "roles/ux_researcher.json",
+      "role_id": "ux_researcher",
+      "name": "UX Researcher",
+      "category": "ux",
+      "parent": "base_auditor",
+      "safety_vaccinated": true
+    },
+    "devops_engineer": {
+      "file": "roles/devops_engineer.json",
+      "role_id": "devops_engineer",
+      "name": "DevOps Engineer",
+      "category": "devops",
+      "parent": "base_auditor",
+      "safety_vaccinated": true
+    }
+  },
+  "categories": {
+    "base": "Base templates for inheritance",
+    "security": "Security and vulnerability experts",
+    "performance": "Performance optimization experts",
+    "database": "Database and data modeling experts",
+    "ux": "User experience and interface experts",
+    "devops": "Deployment and operations experts"
+  },
+  "mixins": {
+    "safety_core": {
+      "file": "safety_core.txt",
+      "description": "Immutable safety rules - required for all templates"
+    }
+  }
+}

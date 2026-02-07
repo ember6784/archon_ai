@@ -1,0 +1,142 @@
+[tool.poetry]
+name = "archon-ai"
+version = "0.1.0"
+description = "Enterprise AI Operating System with T0-T3 security architecture, autonomous operations, and multi-channel support"
+authors = ["ember6784 <ember6784@users.noreply.github.com>"]
+readme = "README.md"
+license = "MIT"
+packages = [
+    { include = "enterprise" },
+    { include = "mat" },
+    { include = "openclaw" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+
+# ============================================================================
+# ASYNC & NETWORKING
+# ============================================================================
+websockets = "^12.0"
+aiohttp = "^3.9.0"
+aiofiles = "^23.2.0"
+
+
+# ============================================================================
+# STATE & CACHE
+# ============================================================================
+redis = {extras = ["hiredis"], version = "^5.0.0"}
+aioredis = "^2.0.0"
+
+
+# ============================================================================
+# DATABASE
+# ============================================================================
+asyncpg = "^0.29.0"           # PostgreSQL async driver
+sqlalchemy = "^2.0.0"         # ORM
+alembic = "^1.13.0"           # Migrations
+
+
+# ============================================================================
+# LLM PROVIDERS
+# ============================================================================
+anthropic = "^0.18.0"
+openai = "^1.0.0"
+
+
+# ============================================================================
+# SECURITY
+# ============================================================================
+pyjwt = "^2.8.0"
+cryptography = "^42.0.0"
+python-multipart = "^0.0.6"
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+python-keycloak = "^4.0.0"    # SSO integration
+
+
+# ============================================================================
+# OBSERVABILITY
+# ============================================================================
+prometheus-client = "^0.20.0"
+opentelemetry-api = "^1.22.0"
+opentelemetry-sdk = "^1.22.0"
+opentelemetry-instrumentation-aiohttp-client = "^0.43b0"
+structlog = "^24.1.0"
+
+
+# ============================================================================
+# DATA PROCESSING
+# ============================================================================
+pydantic = "^2.5.0"
+pydantic-settings = "^2.1.0"
+
+
+# ============================================================================
+# UTILITIES
+# ============================================================================
+python-dotenv = "^1.0.0"
+click = "^8.1.0"
+rich = "^13.7.0"
+typer = "^0.9.0"
+
+
+# ============================================================================
+# DEV DEPENDENCIES
+# ============================================================================
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-asyncio = "^0.23.0"
+pytest-cov = "^4.1.0"
+pytest-mock = "^3.12.0"
+httpx = "^0.26.0"
+ruff = "^0.2.0"
+mypy = "^1.8.0"
+pre-commit = "^3.6.0"
+
+
+[tool.poetry.group.load.dependencies]
+locust = "^2.20.0"
+
+
+# ============================================================================
+# BUILD SYSTEM
+# ============================================================================
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+
+# ============================================================================
+# TOOL CONFIGURATIONS
+# ============================================================================
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["enterprise", "mat", "openclaw"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-v --cov=enterprise --cov=mat --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["enterprise", "mat"]
+omit = ["*/tests/*", "*/test_*.py"]
