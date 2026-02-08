@@ -100,7 +100,7 @@ Check      [Breaker]    Validation
   channels: {
     telegram: {
       enabled: true,
-      botToken: "7898417089:AAHaUj3Ywlsnaqr2e71RjrmJMdNUxMpdu-0",
+      botToken: "YOUR_TELEGRAM_BOT_TOKEN",  // Получите от @BotFather
       dmPolicy: "pairing",  // безопасность: только одобренные пользователи
     },
   },

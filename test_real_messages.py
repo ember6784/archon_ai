@@ -22,10 +22,8 @@ from openclaw.gateway_v3 import GatewayMessage
 logging.basicConfig(level=logging.DEBUG, format='%(name)s - %(levelname)s - %(message)s')
 
 GATEWAY_URL = "ws://127.0.0.1:18789"
-GATEWAY_TOKEN = "test_token_123"
-
-# Set token for gateway client
-os.environ["OPENCLAW_GATEWAY_TOKEN"] = GATEWAY_TOKEN
+# Don't set test token - Gateway with --allow-unconfigured should accept connections without auth
+# GATEWAY_TOKEN = "test_token_123"
 
 
 class MessageListener:

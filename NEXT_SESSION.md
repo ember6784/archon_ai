@@ -1,8 +1,43 @@
 # Archon AI - Development Plan
 
-**Last Updated:** 2026-02-07
-**Project Status:** Phase 3 Complete - LLM Integration + Production Code from multi_agent_team
-**Current Focus:** Phase 4 - Execution Kernel + OpenClaw Integration
+**Last Updated:** 2026-02-08
+**Project Status:** Phase 4 In Progress - OpenClaw Gateway Integration
+**Current Focus:** Device Signing + Middleware Connection
+
+---
+
+## 🚨 Текущий статус (Session 8)
+
+### Что работает ✅
+- OpenClaw Gateway запущен на порту 18789 (PID 1308)
+- Telegram бот @quant_dev_ai_bot работает (user 554557965 paired)
+- OpenClaw Pi Agent (xai/grok-code-fast-1) отвечает на сообщения
+- Archon AI Kernel готов (ExecutionKernel + Circuit Breaker)
+- Тестовые файлы созданы
+
+### Что НЕ работает ❌
+- **Python GatewayClientV3 не может подключиться** к Gateway
+- Проблема: Gateway требует Ed25519 device signing ИЛИ валидный auth token
+- test_token_123 не принимается Gateway
+- Archon AI SecureGatewayBridge не подключён к Gateway
+
+### Текущая архитектура
+```
+Telegram → OpenClaw Gateway → Pi Agent (отвечает)
+                            ↓
+                    (НЕ подключено)
+                            ↓
+                    Archon AI Kernel
+```
+
+### Проблема handshake
+```
+< CLOSE 1008 (policy violation) invalid connect params: ... match a schema in anyOf
+```
+
+Gateway требует ОДНОГО из:
+1. Валидный auth token (от OpenClaw)
+2. Device signing (Ed25519 publicKey + signature)
 
 ---
 
@@ -472,4 +507,133 @@ Priority: P0 - Intent Contract Validator
 2. Extend validation.py with PostConditionResult
 3. Integration tests for intent contracts
 4. Connect IntentContract ↔ ExecutionKernel
+
+---
+
+## Session 9 Goals (2026-02-08) - OpenClaw Device Signing
+
+**Priority: P0 - Подключить Archon AI к Gateway**
+
+### Задача 1: Реализовать Ed25519 device signing
+
+| Файл | Что добавить | Описание |
+|------|--------------|----------|
+| `openclaw/gateway_v3.py` | DeviceAuth class | Генерация Ed25519 ключей |
+| `openclaw/gateway_v3.py` | `sign_payload()` | Подпись challenge payload |
+| `openclaw/gateway_v3.py` | `_send_connect()` | Добавить publicKey + signature |
+
+```python
+# Пример реализации:
+from cryptography.hazmat.primitives.asymmetric import ed25519
+from cryptography.hazmat.primitives import serialization
+import base64
+
+class DeviceAuth:
+    def __init__(self, key_path: str = None):
+        if key_path and Path(key_path).exists():
+            self._load_keys(key_path)
+        else:
+            self._generate_keys()
+            if key_path:
+                self._save_keys(key_path)
+
+    def _generate_keys(self):
+        self.private_key = ed25519.Ed25519PrivateKey.generate()
+        self.public_key = self.private_key.public_key()
+
+    def sign_payload(self, payload: str) -> str:
+        signature = self.private_key.sign(payload.encode())
+        return base64.urlsafe_b64encode(signature).decode()
+
+    def get_public_key_raw(self) -> str:
+        raw = self.public_key.public_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PublicFormat.Raw
+        )
+        return base64.urlsafe_b64encode(raw).decode()
+```
+
+### Задача 2: Обновить connect request
+
+```python
+params = {
+    "minProtocol": 3,
+    "maxProtocol": 3,
+    "client": {...},
+    "role": "operator",
+    "scopes": ["operator.read", "operator.write"],
+    "caps": [],
+    "device": {
+        "id": device_id,
+        "publicKey": device_auth.get_public_key_raw(),
+        "signature": device_auth.sign_payload(payload),
+        "signedAt": ts,
+        "nonce": nonce
+    }
+}
+```
+
+### Задача 3: Тестирование подключения
+
+1. Запустить `test_real_messages.py`
+2. Убедиться что handshake проходит
+3. Получить `hello-ok` от Gateway
+4. Начать приём событий `message`
+
+### Задача 4: Подключить SecureGatewayBridge
+
+```python
+# В run_quant_bot.py или новом файле:
+from kernel.openclaw_integration import create_secure_bridge
+from openclaw import GatewayConfig, GatewayClientV3
+
+async def main():
+    config = GatewayConfig(
+        url="ws://localhost:18789",
+        client_id="archon-ai-telegram",
+        role="operator"
+    )
+
+    bridge = create_secure_bridge(
+        integration_config=IntegrationConfig(
+            ws_url="ws://localhost:18789",
+            enable_circuit_breaker=True,
+            enable_kernel_validation=True
+        )
+    )
+
+    connected = await bridge.connect_gateway_v3()
+    if connected:
+        print("[+] Archon AI подключён к Gateway!")
+
+        # Регистрируем обработчик для Telegram
+        bridge.register_secure_handler(
+            pattern="*",
+            handler=handle_telegram_message,
+            operation_name="telegram_handler"
+        )
+```
+
+### Ожидаемый результат
+
+```
+Telegram → OpenClaw Gateway → Archon AI Kernel → Ответ
+                              ↓
+                         Validation:
+                         - RBAC check
+                         - Circuit Breaker
+                         - Intent Contracts
+                         - Invariants
+```
+
+### Файлы для изменения
+
+| Файл | Изменения |
+|------|-----------|
+| `openclaw/gateway_v3.py` | +DeviceAuth class, sign_payload() |
+| `openclaw/__init__.py` | Export DeviceAuth |
+| `kernel/openclaw_integration.py` | Update connect_gateway_v3() |
+| `test_real_messages.py` | Use DeviceAuth |
+| `run_quant_bot.py` | Connect via SecureGatewayBridge |
+| `requirements.txt` | Add `cryptography` package |
 

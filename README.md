@@ -2,7 +2,20 @@
 
 > **Constraint-Oriented Adaptive System (COAS)** — операционная среда для мультиагентных интеллектов с гарантиями безопасности через архитектурные ограничения.
 
-**Status:** Active Development | **Version:** 0.1.0-alpha | **Last Updated:** 2026-02-07
+**Status:** Active Development | **Version:** 0.1.0-alpha | **Last Updated:** 2026-02-08
+
+---
+
+## 🚨 Текущий статус интеграции
+
+| Компонент | Статус | Детали |
+|-----------|--------|--------|
+| OpenClaw Gateway | ✅ Запущен | Порт 18789 |
+| Telegram бот @quant_dev_ai_bot | ✅ Работает | User 554557965 paired |
+| Archon AI Kernel | ✅ Готов | ExecutionKernel + Circuit Breaker |
+| Python Gateway Client | ❌ В разработке | Требуется Ed25519 device signing |
+
+Подробнее: [TELEGRAM_INTEGRATION_STATUS.md](TELEGRAM_INTEGRATION_STATUS.md)
 
 ---
 

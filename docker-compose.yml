@@ -36,14 +36,14 @@ services:
       # Database (if using PostgreSQL/Redis)
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
-      - POSTGRES_DB=${POSTGRES_DB:-archon_ai}
-      - POSTGRES_USER=${POSTGRES_USER:-archon}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       
       # Security
-      - SECRET_KEY=${SECRET_KEY:-changeme-change-me-in-production}
+      - SECRET_KEY=${SECRET_KEY}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:8000}
     volumes:
       # Mount code for development (comment out for production)
@@ -67,9 +67,9 @@ services:
     image: postgres:15-alpine
     container_name: archon_postgres
     environment:
-      - POSTGRES_DB=${POSTGRES_DB:-archon_ai}
-      - POSTGRES_USER=${POSTGRES_USER:-archon}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:

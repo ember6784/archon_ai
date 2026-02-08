@@ -240,21 +240,24 @@ class GatewayClientV3:
                     continue
                 
                 # Handle response (hello-ok)
-                if message.type == "res" and message.ok and message.payload.get("type") == "hello-ok":
-                    self._protocol_version = message.payload.get("protocol", 3)
-                    policy = message.payload.get("policy", {})
-                    tick_interval = policy.get("tickIntervalMs", 15000) / 1000
-                    
-                    # Extract device token if present
-                    auth = message.payload.get("auth", {})
-                    self._device_token = auth.get("deviceToken")
-                    
-                    self._state = GatewayState.CONNECTED
-                    logger.info(f"[GatewayV3] Connected! Protocol v{self._protocol_version}")
-                    
-                    # Start heartbeat
-                    self._tick_task = asyncio.create_task(self._tick_loop(tick_interval))
-                    continue
+                if message.type == "res":
+                    if not message.ok:
+                        logger.error(f"[GatewayV3] Connect failed: {message.payload}")
+                    if message.ok and message.payload.get("type") == "hello-ok":
+                        self._protocol_version = message.payload.get("protocol", 3)
+                        policy = message.payload.get("policy", {})
+                        tick_interval = policy.get("tickIntervalMs", 15000) / 1000
+
+                        # Extract device token if present
+                        auth = message.payload.get("auth", {})
+                        self._device_token = auth.get("deviceToken")
+
+                        self._state = GatewayState.CONNECTED
+                        logger.info(f"[GatewayV3] Connected! Protocol v{self._protocol_version}")
+
+                        # Start heartbeat
+                        self._tick_task = asyncio.create_task(self._tick_loop(tick_interval))
+                        continue
                 
                 # Handle events
                 if message.type == "event" and message.event:
@@ -287,12 +290,21 @@ class GatewayClientV3:
     async def _send_connect(self, nonce: Optional[str], ts: Optional[int]):
         """Send connect request."""
         req_id = str(uuid.uuid4())
-        
+
         # Get token from environment or device_token
         import os
         env_token = os.getenv("OPENCLAW_GATEWAY_TOKEN")
         auth_token = env_token or self._device_token or ""
-        
+
+        # Build auth object (only include if we have credentials)
+        # Note: Gateway requires either auth.token OR device auth (signature)
+        # For --allow-unconfigured mode, don't send auth at all if no proper token
+        auth = None
+        # Only send auth if we have a non-test token
+        # Test tokens like "test_token_123" won't be accepted by Gateway
+        if auth_token and not auth_token.startswith("test_"):
+            auth = {"token": auth_token}
+
         params = {
             "minProtocol": 3,
             "maxProtocol": 3,
@@ -300,33 +312,38 @@ class GatewayClientV3:
                 "id": self.config.client_id,
                 "version": self.config.client_version,
                 "platform": self.config.platform,
-                "mode": "operator"
+                "mode": "backend"  # Valid modes: webchat, cli, ui, backend, node, probe, test
             },
             "role": self.config.role,
             "scopes": self.config.scopes,
             "caps": [],
-            "commands": [],
-            "permissions": {},
-            "auth": {"token": auth_token},
             "locale": "en-US",
             "userAgent": f"{self.config.client_id}/{self.config.client_version}",
         }
-        
+
+        # Only add auth if we have a real token (not test token)
+        if auth:
+            params["auth"] = auth
+
         # Add device info if we have a nonce
-        if nonce:
+        # Note: Full device auth requires crypto signing (publicKey, signature)
+        # For --allow-unconfigured mode, we can skip device auth entirely
+        # Only send device object if we have proper signing capability
+        if nonce and os.getenv("OPENCLAW_DEVICE_PUBLIC_KEY") and os.getenv("OPENCLAW_DEVICE_PRIVATE_KEY"):
+            # TODO: Implement proper device signing
             params["device"] = {
                 "id": self.config.client_id,
                 "nonce": nonce,
                 "signedAt": ts
             }
-        
+
         message = GatewayMessage(
             type="req",
             id=req_id,
             method="connect",
             params=params
         )
-        
+
         await self._ws.send(message.to_json())
         logger.debug(f"[GatewayV3] Sent connect request")
     
