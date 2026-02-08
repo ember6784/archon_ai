@@ -1,0 +1,54 @@
+{
+  "version": "1.0.0",
+  "description": "Development environment overrides - relaxed constraints for faster iteration",
+
+  "domains": {
+    "system": {
+      "enabled": true,
+      "priority": 20
+    },
+    "trading": {
+      "enabled": false,
+      "priority": 10,
+      "reason": "Trading disabled in development"
+    }
+  },
+
+  "operations": {
+    "write_file": {
+      "risk_level": 0.2,
+      "human_approval_required": false,
+      "debate_required": false
+    },
+
+    "exec_code": {
+      "risk_level": 0.5,
+      "debate_required": false,
+      "human_approval_required": false,
+      "post_conditions": [
+        {
+          "type": "exit_code",
+          "operator": "==",
+          "value": 0
+        }
+      ]
+    },
+
+    "trade_execute": {
+      "enabled": false,
+      "reason": "Trading disabled in dev environment"
+    },
+
+    "*": {
+      "debate_required": false,
+      "human_approval_required": false,
+      "audit_only": true
+    }
+  },
+
+  "logging": {
+    "level": "DEBUG",
+    "verbose": true,
+    "log_all_decisions": true
+  }
+}

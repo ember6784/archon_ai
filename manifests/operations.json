@@ -1,0 +1,396 @@
+{
+  "version": "1.0.0",
+  "extends": ["base"],
+  "description": "Operation-level contracts with pre/post conditions and invariants",
+
+  "domains": {
+    "system": {
+      "enabled": true,
+      "priority": 20,
+      "description": "System-level operations (file, network, etc.)"
+    },
+    "trading": {
+      "enabled": true,
+      "priority": 10,
+      "description": "Trading operations (order execution, position management)"
+    },
+    "analysis": {
+      "enabled": true,
+      "priority": 15,
+      "description": "Analysis operations (data processing, backtesting)"
+    }
+  },
+
+  "operations": {
+    "read_file": {
+      "risk_level": 0.0,
+      "domains": ["system"],
+      "description": "Read file from filesystem",
+
+      "pre_conditions": [
+        {
+          "type": "file_exists",
+          "check": "file_path in filesystem"
+        },
+        {
+          "type": "agent_has_read_permission",
+          "check": "agent.permissions.contains('file.read')"
+        },
+        {
+          "type": "not_protected_path",
+          "check": "file_path not in protected_paths"
+        }
+      ],
+
+      "post_conditions": [],
+
+      "invariants": [
+        "file_not_modified",
+        "file_permissions_unchanged"
+      ],
+
+      "required_checks": [],
+      "fast_path_available": true,
+      "debate_required": false,
+      "human_approval_required": false
+    },
+
+    "write_file": {
+      "risk_level": 0.3,
+      "domains": ["system"],
+      "description": "Write or modify file",
+
+      "pre_conditions": [
+        {
+          "type": "agent_has_write_permission",
+          "check": "agent.permissions.contains('file.write')"
+        },
+        {
+          "type": "not_protected_path",
+          "check": "file_path not in protected_paths"
+        },
+        {
+          "type": "backup_exists",
+          "check": "backup_file_exists(file_path)"
+        }
+      ],
+
+      "post_conditions": [
+        {
+          "type": "file_written",
+          "operator": "==",
+          "value": true,
+          "description": "File was successfully written"
+        },
+        {
+          "type": "backup_created",
+          "operator": "==",
+          "value": true,
+          "fatal": false
+        }
+      ],
+
+      "invariants": [
+        "core_files_unchanged",
+        "system_integrity_maintained"
+      ],
+
+      "required_checks": ["rbac", "intent_contract"],
+      "fast_path_available": false,
+      "debate_required": false,
+      "human_approval_required": false
+    },
+
+    "delete_file": {
+      "risk_level": 0.8,
+      "domains": ["system"],
+      "description": "Delete file from filesystem",
+
+      "pre_conditions": [
+        {
+          "type": "agent_has_delete_permission",
+          "check": "agent.permissions.contains('file.delete')"
+        },
+        {
+          "type": "not_protected_path",
+          "check": "file_path not in protected_paths"
+        },
+        {
+          "type": "file_exists",
+          "check": "file_path in filesystem"
+        }
+      ],
+
+      "post_conditions": [
+        {
+          "type": "file_deleted",
+          "operator": "==",
+          "value": true
+        }
+      ],
+
+      "invariants": [
+        "core_files_unchanged",
+        "system_integrity_maintained"
+      ],
+
+      "required_checks": ["rbac", "intent_contract", "audit"],
+      "fast_path_available": false,
+      "debate_required": true,
+      "human_approval_required": false
+    },
+
+    "exec_code": {
+      "risk_level": 0.9,
+      "domains": ["system"],
+      "description": "Execute arbitrary code in sandboxed environment",
+
+      "pre_conditions": [
+        {
+          "type": "code_sanitized",
+          "check": "ast.parse(code) passes sanitizer"
+        },
+        {
+          "type": "sandbox_active",
+          "check": "docker.container.is_running"
+        },
+        {
+          "type": "agent_has_exec_permission",
+          "check": "agent.permissions.contains('code.exec')"
+        },
+        {
+          "type": "no_forbidden_imports",
+          "check": "all(imp not in code for imp in forbidden_imports)"
+        }
+      ],
+
+      "post_conditions": [
+        {
+          "type": "exit_code",
+          "operator": "==",
+          "value": 0,
+          "description": "Code executed successfully"
+        },
+        {
+          "type": "execution_time_ms",
+          "operator": "<",
+          "value": 5000,
+          "description": "Execution completed within timeout"
+        },
+        {
+          "type": "no_resource_leak",
+          "operator": "==",
+          "value": true,
+          "fatal": true
+        }
+      ],
+
+      "invariants": [
+        "no_escape_from_sandbox",
+        "no_forbidden_imports",
+        "no_network_access_without_approval",
+        "no_filesystem_write_without_approval"
+      ],
+
+      "required_checks": ["rbac", "ast_sanitizer", "debate", "audit"],
+      "fast_path_available": false,
+      "debate_required": true,
+      "human_approval_required": false
+    },
+
+    "network_request": {
+      "risk_level": 0.6,
+      "domains": ["system", "analysis"],
+      "description": "Make HTTP/network request",
+
+      "pre_conditions": [
+        {
+          "type": "agent_has_network_permission",
+          "check": "agent.permissions.contains('network.request')"
+        },
+        {
+          "type": "url_allowed",
+          "check": "url.hostname in allowed_domains"
+        },
+        {
+          "type": "not_protected_url",
+          "check": "not url.hostname in protected_domains"
+        }
+      ],
+
+      "post_conditions": [
+        {
+          "type": "response_received",
+          "operator": "==",
+          "value": true
+        },
+        {
+          "type": "response_code",
+          "operator": "<",
+          "value": 400
+        }
+      ],
+
+      "invariants": [
+        "no_sensitive_data_leaked",
+        "request_rate_limit_not_exceeded"
+      ],
+
+      "required_checks": ["rbac", "intent_contract", "audit"],
+      "fast_path_available": false,
+      "debate_required": false,
+      "human_approval_required": false
+    },
+
+    "trade_execute": {
+      "risk_level": 0.9,
+      "domains": ["trading"],
+      "description": "Execute trade order",
+
+      "pre_conditions": [
+        {
+          "type": "position_size_ok",
+          "operator": "<=",
+          "value": "max_position_size",
+          "description": "Position size within limits"
+        },
+        {
+          "type": "drawdown_ok",
+          "operator": "<=",
+          "value": "max_drawdown",
+          "description": "Current drawdown within limits"
+        },
+        {
+          "type": "stop_loss_set",
+          "check": "stop_loss is not null"
+        },
+        {
+          "type": "regime_allows_trading",
+          "check": "market_regime == 'ALLOWED'"
+        },
+        {
+          "type": "correlation_check",
+          "check": "portfolio_correlation < max_correlation"
+        }
+      ],
+
+      "post_conditions": [
+        {
+          "type": "order_submitted",
+          "operator": "==",
+          "value": true
+        },
+        {
+          "type": "risk_updated",
+          "operator": "==",
+          "value": true
+        },
+        {
+          "type": "sharpe_ratio",
+          "operator": ">=",
+          "value": 1.8,
+          "description": "Sharpe ratio maintained",
+          "fatal": true
+        },
+        {
+          "type": "max_drawdown",
+          "operator": "<=",
+          "value": 0.05,
+          "description": "Drawdown within limits",
+          "fatal": true
+        }
+      ],
+
+      "invariants": [
+        "max_position_not_exceeded",
+        "max_drawdown_not_exceeded",
+        "no_martingale",
+        "forbidden_correlation_check",
+        "sector_concentration_ok"
+      ],
+
+      "required_checks": ["rbac", "domain_rules", "debate", "audit"],
+      "fast_path_available": false,
+      "debate_required": true,
+      "human_approval_required": true
+    },
+
+    "git_commit": {
+      "risk_level": 0.5,
+      "domains": ["system"],
+      "description": "Commit changes to git repository",
+
+      "pre_conditions": [
+        {
+          "type": "agent_has_git_permission",
+          "check": "agent.permissions.contains('git.commit')"
+        },
+        {
+          "type": "branch_exists",
+          "check": "branch in repository"
+        },
+        {
+          "type": "no_secrets_in_diff",
+          "check": "no_secrets_in_git_diff()"
+        }
+      ],
+
+      "post_conditions": [
+        {
+          "type": "commit_successful",
+          "operator": "==",
+          "value": true
+        },
+        {
+          "type": "commit_hash_returned",
+          "check": "commit_hash matches format"
+        }
+      ],
+
+      "invariants": [
+        "protected_branches_unchanged",
+        "git_integrity_maintained"
+      ],
+
+      "required_checks": ["rbac", "intent_contract", "audit"],
+      "fast_path_available": false,
+      "debate_required": false,
+      "human_approval_required": false
+    },
+
+    "*": {
+      "risk_level": 0.5,
+      "domains": [],
+      "description": "Fallback contract for unknown operations",
+
+      "pre_conditions": [
+        {
+          "type": "operation_known",
+          "check": "operation in registered_operations"
+        }
+      ],
+
+      "post_conditions": [],
+
+      "invariants": [
+        "system_integrity_maintained"
+      ],
+
+      "required_checks": ["rbac", "audit"],
+      "fast_path_available": false,
+      "debate_required": false,
+      "human_approval_required": false,
+      "fallback_contract": true
+    }
+  },
+
+  "risk_levels": {
+    "0.0": "read_file",
+    "0.3": "write_file",
+    "0.5": "git_commit",
+    "0.6": "network_request",
+    "0.8": "delete_file",
+    "0.9": ["exec_code", "trade_execute"],
+    "fast_path_threshold": 0.1
+  }
+}

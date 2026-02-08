@@ -1,0 +1,50 @@
+# Archon AI - Development Dockerfile
+# Includes development tools and hot-reload
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies including development tools
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    git \
+    curl \
+    vim \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY pyproject.toml ./
+RUN pip install --no-cache-dir poetry && \
+    poetry config virtualenvs.create false && \
+    poetry install --no-interaction --no-ansi
+
+# Install additional development tools
+RUN pip install --no-cache-dir \
+    pytest \
+    pytest-asyncio \
+    pytest-cov \
+    httpx \
+    black \
+    ruff \
+    mypy
+
+# Copy application code
+COPY mat ./mat
+COPY enterprise ./enterprise
+COPY openclaw ./openclaw
+COPY tests ./tests
+
+# Create non-root user for development
+RUN useradd -m -u 1000 archon && \
+    chown -R archon:archon /app
+
+# Expose port
+EXPOSE 8000
+
+# Switch to non-root user
+USER archon
+
+# Run with hot-reload by default
+CMD ["uvicorn", "enterprise.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

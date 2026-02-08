@@ -1,176 +1,130 @@
-# Archon AI - Docker Compose
-# Local development environment
+# Archon AI - Docker Compose Configuration
+# =========================================
 
-version: "3.8"
+version: '3.8'
 
 services:
-  # ============================================================================
-  # Archon AI Service
-  # ============================================================================
-  archon:
+  # Main API Service
+  archon-api:
     build:
       context: .
-      dockerfile: deploy/docker/Dockerfile
-    container_name: archon-ai
-    restart: unless-stopped
+      dockerfile: Dockerfile
+    container_name: archon_ai_api
     ports:
-      - "8000:8000"   # API
-      - "9090:9090"   # Metrics
+      - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/archon_ai
-      - REDIS_URL=redis://redis:6379/0
-      - OPENCLAW_GATEWAY_URL=ws://openclaw-gateway:18789
-      - ENVIRONMENT=development
-      - LOG_LEVEL=INFO
-      - AUDIT_ENABLED=true
-      - CIRCUIT_BREAKER_ENABLED=true
-      - SIEGE_MODE_ENABLED=true
-      - APP_NAME=Archon AI
+      # API Keys - load from .env or set here
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - XAI_API_KEY=${XAI_API_KEY:-}
+      - GLM_API_KEY=${GLM_API_KEY:-}
+      - HF_API_KEY=${HF_API_KEY:-}
+      - CEREBRAS_API_KEY=${CEREBRAS_API_KEY:-}
+      
+      # LLM Router Settings
+      - LLM_QUALITY_PREFERENCE=${LLM_QUALITY_PREFERENCE:-balanced}
+      - LLM_ENABLED_PROVIDERS=${LLM_ENABLED_PROVIDERS:-openai,anthropic,google,groq}
+      
+      # Application Settings
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FORMAT=${LOG_FORMAT:-text}
+      
+      # Database (if using PostgreSQL/Redis)
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-archon_ai}
+      - POSTGRES_USER=${POSTGRES_USER:-archon}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      
+      # Security
+      - SECRET_KEY=${SECRET_KEY:-changeme-change-me-in-production}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:8000}
     volumes:
-      - ./data:/app/data
-      - ./enterprise:/app/enterprise
-      - ./mat:/app/mat
-      - ./openclaw:/app/openclaw
+      # Mount code for development (comment out for production)
+      - ./mat:/app/mat:ro
+      - ./enterprise:/app/enterprise:ro
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      openclaw-gateway:
-        condition: service_started
-    networks:
-      - archon-network
-
-  # ============================================================================
-  # OpenClaw Gateway
-  # ============================================================================
-  openclaw-gateway:
-    image: openclaw/gateway:latest
-    container_name: openclaw-gateway
+      - postgres
+      - redis
     restart: unless-stopped
-    ports:
-      - "18789:18789"  # WebSocket
-      - "18790:18790"  # HTTP
-    environment:
-      - NODE_ENV=development
     networks:
       - archon-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
-  # ============================================================================
-  # PostgreSQL Database
-  # ============================================================================
+  # PostgreSQL Database (optional - for future features)
   postgres:
     image: postgres:15-alpine
-    container_name: archon-postgres
-    restart: unless-stopped
-    ports:
-      - "5432:5432"
+    container_name: archon_postgres
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=archon_ai
+      - POSTGRES_DB=${POSTGRES_DB:-archon_ai}
+      - POSTGRES_USER=${POSTGRES_USER:-archon}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
     networks:
       - archon-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-archon}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # ============================================================================
-  # Redis Cache
-  # ============================================================================
+  # Redis Cache (optional - for future features)
   redis:
     image: redis:7-alpine
-    container_name: archon-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
+    container_name: archon_redis
     command: redis-server --appendonly yes
     volumes:
       - redis-data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - archon-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - archon-network
 
-  # ============================================================================
-  # Prometheus (Metrics)
-  # ============================================================================
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: archon-prometheus
-    restart: unless-stopped
+  # Nginx Reverse Proxy (optional - for production)
+  nginx:
+    image: nginx:alpine
+    container_name: archon_nginx
     ports:
-      - "9091:9090"
+      - "80:80"
+      - "443:443"
     volumes:
-      - ./deploy/docker/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus-data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-    networks:
-      - archon-network
-
-  # ============================================================================
-  # Grafana (Dashboards)
-  # ============================================================================
-  grafana:
-    image: grafana/grafana:latest
-    container_name: archon-grafana
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ./deploy/docker/grafana-dashboards:/etc/grafana/provisioning/dashboards
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
-      - prometheus
-    networks:
-      - archon-network
-
-  # ============================================================================
-  # Jaeger (Tracing)
-  # ============================================================================
-  jaeger:
-    image: jaegertracing/all-in-one:latest
-    container_name: archon-jaeger
+      - archon-api
     restart: unless-stopped
-    ports:
-      - "5775:5775/udp"
-      - "6831:6831/udp"
-      - "6832:6832/udp"
-      - "5778:5778"
-      - "16686:16686"  # UI
-      - "14268:14268"
-      - "14250:14250"
-      - "9411:9411"
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
     networks:
       - archon-network
+    profiles:
+      - production
 
-# ============================================================================
-# Networks
-# ============================================================================
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+
 networks:
   archon-network:
     driver: bridge
-
-# ============================================================================
-# Volumes
-# ============================================================================
-volumes:
-  postgres-data:
-  redis-data:
-  prometheus-data:
-  grafana-data:

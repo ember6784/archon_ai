@@ -11,6 +11,28 @@
       "category": "base",
       "safety_vaccinated": true
     },
+    "builder": {
+      "file": "roles/builder.json",
+      "role_id": "builder",
+      "name": "Builder Agent",
+      "category": "debate",
+      "safety_vaccinated": true
+    },
+    "skeptic": {
+      "file": "roles/skeptic.json",
+      "role_id": "skeptic",
+      "name": "Skeptic Agent",
+      "category": "debate",
+      "parent": "security_expert",
+      "safety_vaccinated": true
+    },
+    "auditor": {
+      "file": "roles/auditor.json",
+      "role_id": "auditor",
+      "name": "Auditor Agent",
+      "category": "debate",
+      "safety_vaccinated": true
+    },
     "security_expert": {
       "file": "roles/security_expert.json",
       "role_id": "security_expert",
@@ -54,6 +76,7 @@
   },
   "categories": {
     "base": "Base templates for inheritance",
+    "debate": "Multi-agent debate system roles",
     "security": "Security and vulnerability experts",
     "performance": "Performance optimization experts",
     "database": "Database and data modeling experts",

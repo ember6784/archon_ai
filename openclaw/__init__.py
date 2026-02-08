@@ -10,10 +10,12 @@ This package provides the integration layer with OpenClaw:
 
 __version__ = "0.1.0"
 
-from openclaw.gateway import GatewayClient
+from openclaw.gateway_v3 import GatewayClientV3, GatewayClient, GatewayConfig
 from openclaw.channels import ChannelManager
 
 __all__ = [
-    "GatewayClient",
+    "GatewayClientV3",
+    "GatewayClient",  # backward compatibility
+    "GatewayConfig",
     "ChannelManager",
 ]

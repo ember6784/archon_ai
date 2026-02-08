@@ -6,7 +6,7 @@ Tracks agent performance to prevent "infinite hiring" of ineffective agents.
 Implements metrics collection, analysis, and auto-actions for underperformers.
 
 Usage:
-    from mat.agent_scoreboard import Scoreboard, AgentMetrics
+    from agent_scoreboard import Scoreboard, AgentMetrics
 
     scoreboard = Scoreboard()
     scoreboard.record_debate("security_expert", outcome={
@@ -22,8 +22,9 @@ Usage:
 """
 
 import json
+import time
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Dict, List, Optional, Any
@@ -34,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 class VerdictType(Enum):
-    """Verdict type from debates"""
+    """Тип вердикта из дебатов"""
     APPROVED = "approved"
     APPROVED_WITH_RISKS = "approved_with_risks"
     WARNING = "warning"
@@ -45,73 +46,73 @@ class VerdictType(Enum):
 @dataclass
 class AgentMetrics:
     """
-    Agent performance metrics
+    Метрики эффективности агента
 
-    Used for evaluating performance and making decisions
-    about disabling ineffective agents.
+    Используется для оценки производительности и принятия решений
+    об отключении неэффективных агентов.
     """
     agent_id: str
-    template_origin: Optional[str] = None  # Which template created it
+    template_origin: Optional[str] = None  # Из какого шаблона создан
 
-    # Debate participation
+    # Участие в дебатах
     debates_participated: int = 0
     debates_approved: int = 0
     debates_rejected: int = 0
 
-    # Consensus (agreement with final decision)
-    consensus_achieved: float = 0.0  # % agreements
+    # Консенсус (согласие с финальным решением)
+    consensus_achieved: float = 0.0  # % согласий
 
-    # Resources
+    # Ресурсы
     avg_tokens_per_debate: int = 0
     total_tokens_used: int = 0
-    avg_response_time: float = 0.0  # seconds
+    avg_response_time: float = 0.0  # секунды
     total_response_time: float = 0.0
 
-    # Quality
-    value_score: float = 0.5  # Score from Auditor (0-1)
-    veto_rate: float = 0.0    # Veto frequency
+    # Качество
+    value_score: float = 0.5  # Оценка от Auditor'а (0-1)
+    veto_rate: float = 0.0    # Частота наложенного вето
 
-    # Survival (for dynamic agents)
-    survival_rate: float = 1.0  # How many debates "survived"
+    # Выживаемость (для динамических агентов)
+    survival_rate: float = 1.0  # Сколько дебатов "выжил"
 
-    # Efficiency
-    cost_efficiency: float = 0.5  # value / cost (tokens)
+    # Эффективность
+    cost_efficiency: float = 0.5  # value / cost (токены)
 
-    # Status
+    # Статус
     is_active: bool = True
     disabled_reason: Optional[str] = None
     disabled_at: Optional[str] = None
 
-    # Timestamps
+    # Временные метки
     first_seen: str = field(default_factory=lambda: datetime.now().isoformat())
     last_seen: str = field(default_factory=lambda: datetime.now().isoformat())
     last_updated: str = field(default_factory=lambda: datetime.now().isoformat())
 
     def calculate_cost_efficiency(self) -> float:
-        """Recalculate cost efficiency"""
+        """Пересчитать cost efficiency"""
         if self.avg_tokens_per_debate == 0:
             return 0.0
 
-        # Efficiency = value_score / (tokens / 1000)
+        # Эффективность = value_score / (tokens / 1000)
         token_cost = self.avg_tokens_per_debate / 1000.0
         self.cost_efficiency = self.value_score / max(token_cost, 0.1)
         return self.cost_efficiency
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dict"""
+        """Конвертировать в словарь"""
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "AgentMetrics":
-        """Create from dict"""
+        """Создать из словаря"""
         return cls(**data)
 
     def update_debate(self, outcome: Dict[str, Any]) -> None:
         """
-        Update metrics after debate
+        Обновить метрики после дебата
 
         Args:
-            outcome: Debate result
+            outcome: Результат дебата
                 - consensus_score: float (0-1)
                 - tokens_used: int
                 - response_time: float (seconds)
@@ -122,21 +123,21 @@ class AgentMetrics:
         self.debates_participated += 1
         self.last_seen = datetime.now().isoformat()
 
-        # Consensus
+        # Консенсус
         consensus = outcome.get("consensus_score", 0.5)
         self.consensus_achieved = (
             (self.consensus_achieved * (self.debates_participated - 1) + consensus)
             / self.debates_participated
         )
 
-        # Verdict
+        # Верdict
         verdict = outcome.get("verdict", "unknown")
         if verdict in [VerdictType.APPROVED.value, VerdictType.APPROVED_WITH_RISKS.value]:
             self.debates_approved += 1
         elif verdict == VerdictType.REJECTED.value:
             self.debates_rejected += 1
 
-        # Tokens
+        # Токены
         tokens = outcome.get("tokens_used", 0)
         self.total_tokens_used += tokens
         self.avg_tokens_per_debate = (
@@ -144,7 +145,7 @@ class AgentMetrics:
             / self.debates_participated
         )
 
-        # Response time
+        # Время ответа
         response_time = outcome.get("response_time", 0)
         self.total_response_time += response_time
         self.avg_response_time = self.total_response_time / self.debates_participated
@@ -164,21 +165,21 @@ class AgentMetrics:
             )
         else:
             self.veto_rate = (
-                (self.veto_rate * (self.debates_participated - 1))
+                self.veto_rate * (self.debates_participated - 1)
             ) / self.debates_participated
 
-        # Recalculate efficiency
+        # Пересчитаем эффективность
         self.calculate_cost_efficiency()
         self.last_updated = datetime.now().isoformat()
 
 
 @dataclass
 class DebateOutcome:
-    """Debate result for recording in Scoreboard"""
+    """Результат дебата для записи в Scoreboard"""
     agent_id: str
     consensus_score: float  # 0-1
     tokens_used: int
-    response_time: float  # seconds
+    response_time: float  # секунды
     verdict: str  # VerdictType
     value_score: float = 0.5
     veto_applied: bool = False
@@ -188,55 +189,65 @@ class DebateOutcome:
 
 @dataclass
 class ScoreboardConfig:
-    """Scoreboard configuration"""
-    # Base directory of project (for absolute paths)
-    base_dir: Optional[str] = None
+    """Конфигурация Scoreboard"""
+    # Базовая директория проекта (для абсолютных путей)
+    base_dir: Optional[str] = None  # Если None - определяется автоматически
 
-    # Thresholds for auto-actions
-    min_value_score: float = 0.3      # Below - agent ineffective
-    min_cost_efficiency: float = 0.5   # Below - disable
-    max_veto_rate: float = 0.5         # Above - retrain or remove
-    min_debates_for_evaluation: int = 5  # Min debates for evaluation
+    # Пороги для авто-действий
+    min_value_score: float = 0.3      # Ниже - агент неэффективен
+    min_cost_efficiency: float = 0.5   # Ниже - отключить
+    max_veto_rate: float = 0.5         # Выше - переобучить или удалить
+    min_debates_for_evaluation: int = 5  # Минимум дебатов для оценки
 
-    # Storage (relative to base_dir or absolute)
-    metrics_file: str = "data/agent_scoreboard.json"
-    history_file: str = "data/agent_metrics_history.jsonl"
+    # Хранение (относительные base_dir или абсолютные)
+    metrics_file: str = "memory/agent_scoreboard.json"
+    history_file: str = "memory/agent_metrics_history.jsonl"
 
-    # Auto-actions
+    # Авто-действия
     auto_disable_low_performers: bool = True
     auto_flag_for_retraining: bool = True
 
     def get_absolute_path(self, relative_path: str) -> str:
-        """Convert relative path to absolute"""
+        """
+        Преобразовать относительный путь в абсолютный
+
+        Args:
+            relative_path: Относительный или абсолютный путь
+
+        Returns:
+            Абсолютный путь
+        """
         path = Path(relative_path)
         if path.is_absolute():
             return str(path)
 
+        # Определяем base_dir
         if self.base_dir:
             base = Path(self.base_dir)
         else:
-            base = Path(__file__).parent.parent
+            # Определяем автоматически от расположения этого файла
+            base = Path(__file__).parent
 
         return str(base / path)
 
 
 class Scoreboard:
     """
-    Scoreboard for tracking agent performance
+    Scoreboard для отслеживания производительности агентов
 
-    Functions:
-    - Record metrics after each debate
-    - Analyze performance
-    - Auto-disable ineffective agents
-    - Metrics history for charts
+    Функции:
+    - Запись метрик после каждого дебата
+    - Анализ производительности
+    - Авто-отключение неэффективных агентов
+    - История метрик для графиков
     """
 
     def __init__(self, config: Optional[ScoreboardConfig] = None):
         self.config = config or ScoreboardConfig()
         self._metrics: Dict[str, AgentMetrics] = {}
-        self._history: deque = deque(maxlen=10000)  # History of all entries
+        self._history: deque = deque(maxlen=10000)  # История всех записей
 
-        # Load saved metrics
+        # Загружаем сохранённые метрики
         self._load_metrics()
         self._load_history()
 
@@ -244,24 +255,24 @@ class Scoreboard:
 
     def record_debate(self, agent_id: str, outcome: Dict[str, Any]) -> AgentMetrics:
         """
-        Record debate results for agent
+        Записать результаты дебата для агента
 
         Args:
-            agent_id: Agent ID
-            outcome: Debate result dict
+            agent_id: ID агента
+            outcome: Словарь с результатами дебата
 
         Returns:
-            Updated agent metrics
+            Обновлённые метрики агента
         """
-        # Create metrics if not exists
+        # Создаём метрики если нет
         if agent_id not in self._metrics:
             self._metrics[agent_id] = AgentMetrics(agent_id=agent_id)
 
-        # Update metrics
+        # Обновляем метрики
         metrics = self._metrics[agent_id]
         metrics.update_debate(outcome)
 
-        # Record to history
+        # Записываем в историю
         self._history.append({
             "timestamp": datetime.now().isoformat(),
             "agent_id": agent_id,
@@ -273,11 +284,11 @@ class Scoreboard:
             }
         })
 
-        # Check thresholds (auto-actions)
+        # Проверяем пороги (авто-действия)
         if metrics.debates_participated >= self.config.min_debates_for_evaluation:
             self._check_auto_actions(agent_id, metrics)
 
-        # Save
+        # Сохраняем
         self._save_metrics()
         self._save_history()
 
@@ -285,13 +296,13 @@ class Scoreboard:
 
     def record_debate_batch(self, outcomes: List[Dict[str, Any]]) -> Dict[str, AgentMetrics]:
         """
-        Record results for multiple agents from one debate
+        Записать результаты нескольких агентов из одного дебата
 
         Args:
-            outcomes: List of results for each agent
+            outcomes: Список результатов для каждого агента
 
         Returns:
-            Dict agent_id -> metrics
+            Словарь agent_id -> метрики
         """
         results = {}
         for outcome in outcomes:
@@ -302,23 +313,23 @@ class Scoreboard:
         return results
 
     def get_metrics(self, agent_id: str) -> Optional[AgentMetrics]:
-        """Get agent metrics"""
+        """Получить метрики агента"""
         return self._metrics.get(agent_id)
 
     def get_all_metrics(self) -> Dict[str, AgentMetrics]:
-        """Get all agent metrics"""
+        """Получить метрики всех агентов"""
         return self._metrics.copy()
 
     def get_top_performers(self, limit: int = 5, metric: str = "cost_efficiency") -> List[AgentMetrics]:
         """
-        Get top performers
+        Получить топ performers
 
         Args:
-            limit: Number of results
-            metric: Metric for sorting (cost_efficiency, value_score, consensus_achieved)
+            limit: Количество результатов
+            metric: Метрика для сортировки (cost_efficiency, value_score, consensus_achieved)
 
         Returns:
-            List of best agents
+            Список лучших агентов
         """
         active = [m for m in self._metrics.values() if m.is_active]
         sorted_metrics = sorted(
@@ -330,13 +341,13 @@ class Scoreboard:
 
     def get_underperformers(self, threshold: float = 0.3) -> List[AgentMetrics]:
         """
-        Get ineffective agents
+        Получить неэффективных агентов
 
         Args:
-            threshold: Value score threshold
+            threshold: Порог value_score
 
         Returns:
-            List of agents with value_score below threshold
+            Список агентов с value_score ниже порога
         """
         return [
             m for m in self._metrics.values()
@@ -344,13 +355,37 @@ class Scoreboard:
             and m.debates_participated >= self.config.min_debates_for_evaluation
         ]
 
-    def disable_agent(self, agent_id: str, reason: str) -> None:
+    def flag_underperformers(self, threshold: float = 0.3) -> List[str]:
         """
-        Disable agent
+        Пометить неэффективных агентов для отключения
 
         Args:
-            agent_id: Agent ID
-            reason: Disable reason
+            threshold: Порог value_score
+
+        Returns:
+            Список ID помеченных агентов
+        """
+        flagged = []
+
+        for metrics in self.get_underperformers(threshold):
+            self.disable_agent(
+                metrics.agent_id,
+                reason=f"Low value score: {metrics.value_score:.2f} < {threshold}"
+            )
+            flagged.append(metrics.agent_id)
+
+        if flagged:
+            logger.warning(f"Flagged {len(flagged)} underperforming agents: {flagged}")
+
+        return flagged
+
+    def disable_agent(self, agent_id: str, reason: str) -> None:
+        """
+        Отключить агента
+
+        Args:
+            agent_id: ID агента
+            reason: Причина отключения
         """
         if agent_id in self._metrics:
             metrics = self._metrics[agent_id]
@@ -362,7 +397,7 @@ class Scoreboard:
             self._save_metrics()
 
     def enable_agent(self, agent_id: str) -> None:
-        """Re-enable agent"""
+        """Включить агент обратно"""
         if agent_id in self._metrics:
             metrics = self._metrics[agent_id]
             metrics.is_active = True
@@ -372,8 +407,25 @@ class Scoreboard:
             logger.info(f"Re-enabled agent {agent_id}")
             self._save_metrics()
 
+    def get_history(self, agent_id: str, limit: int = 100) -> List[Dict]:
+        """
+        Получить историю метрик агента
+
+        Args:
+            agent_id: ID агента
+            limit: Максимальное количество записей
+
+        Returns:
+            Список исторических записей
+        """
+        history = [
+            h for h in self._history
+            if h.get("agent_id") == agent_id
+        ]
+        return history[-limit:]
+
     def get_statistics(self) -> Dict[str, Any]:
-        """Get general statistics"""
+        """Получить общую статистику"""
         all_metrics = list(self._metrics.values())
         active = [m for m in all_metrics if m.is_active]
 
@@ -396,11 +448,11 @@ class Scoreboard:
         }
 
     def _check_auto_actions(self, agent_id: str, metrics: AgentMetrics) -> None:
-        """Check and execute auto-actions"""
+        """Проверить и выполнить авто-действия"""
         if not self.config.auto_disable_low_performers:
             return
 
-        # Low efficiency - disable
+        # Низкая эффективность - отключаем
         if metrics.cost_efficiency < self.config.min_cost_efficiency:
             self.disable_agent(
                 agent_id,
@@ -408,7 +460,7 @@ class Scoreboard:
             )
             return
 
-        # Low value score - disable
+        # Низкий value score - отключаем
         if metrics.value_score < self.config.min_value_score:
             self.disable_agent(
                 agent_id,
@@ -416,7 +468,7 @@ class Scoreboard:
             )
             return
 
-        # High veto rate - flag for retraining
+        # Высокий veto rate - метка для переобучения
         if metrics.veto_rate > self.config.max_veto_rate:
             logger.warning(
                 f"Agent {agent_id} has high veto rate: {metrics.veto_rate:.2f}. "
@@ -424,7 +476,7 @@ class Scoreboard:
             )
 
     def _save_metrics(self) -> None:
-        """Save metrics to file"""
+        """Сохранить метрики в файл"""
         path = Path(self.config.get_absolute_path(self.config.metrics_file))
         path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -437,7 +489,7 @@ class Scoreboard:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
     def _load_metrics(self) -> None:
-        """Load metrics from file"""
+        """Загрузить метрики из файла"""
         path = Path(self.config.get_absolute_path(self.config.metrics_file))
         if not path.exists():
             return
@@ -454,16 +506,16 @@ class Scoreboard:
             logger.error(f"Failed to load metrics: {e}")
 
     def _save_history(self) -> None:
-        """Save history to file"""
+        """Сохранить историю в файл"""
         path = Path(self.config.get_absolute_path(self.config.history_file))
         path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(path, 'a', encoding='utf-8') as f:
-            for entry in list(self._history)[-100:]:  # Last 100
+            for entry in list(self._history)[-100:]:  # Последние 100
                 f.write(json.dumps(entry, ensure_ascii=False) + '\n')
 
     def _load_history(self) -> None:
-        """Load history from file"""
+        """Загрузить историю из файла"""
         path = Path(self.config.get_absolute_path(self.config.history_file))
         if not path.exists():
             return
@@ -480,6 +532,186 @@ class Scoreboard:
 
 
 # =============================================================================
+# CLI DASHBOARD
+# =============================================================================
+
+class ScoreboardDashboard:
+    """CLI дашборд для просмотра метрик"""
+
+    def __init__(self, scoreboard: Scoreboard):
+        self.scoreboard = scoreboard
+
+    def show_overview(self) -> None:
+        """Показать обзорную статистику"""
+        stats = self.scoreboard.get_statistics()
+
+        print("\n" + "=" * 70)
+        print("AGENT SCOREBOARD - OVERVIEW")
+        print("=" * 70)
+
+        print(f"\n📊 General Statistics:")
+        print(f"  Total Agents:     {stats['total_agents']}")
+        print(f"  Active Agents:    {stats['active_agents']}")
+        print(f"  Disabled Agents:  {stats['disabled_agents']}")
+
+        if stats['active_agents'] > 0:
+            print(f"\n📈 Performance Metrics:")
+            print(f"  Avg Value Score:     {stats['avg_value_score']:.3f}")
+            print(f"  Avg Cost Efficiency: {stats['avg_cost_efficiency']:.3f}")
+            print(f"  Avg Tokens/Debate:    {stats['avg_tokens_per_debate']:.0f}")
+
+        print(f"\n📝 Total Activity:")
+        print(f"  Debates Recorded:  {stats['total_debates_recorded']}")
+        print(f"  Tokens Used:       {stats['total_tokens_used']:,}")
+
+        print("\n" + "=" * 70)
+
+    def show_top_performers(self, limit: int = 5) -> None:
+        """Показать лучших агентов"""
+        top = self.scoreboard.get_top_performers(limit=limit)
+
+        print(f"\n🏆 TOP {limit} PERFORMERS (by cost efficiency)")
+        print("-" * 70)
+
+        for i, metrics in enumerate(top, 1):
+            status = "✅" if metrics.is_active else "❌"
+            print(f"{i}. {status} {metrics.agent_id:25s} | "
+                  f"value: {metrics.value_score:.2f} | "
+                  f"efficiency: {metrics.cost_efficiency:.2f} | "
+                  f"debates: {metrics.debates_participated}")
+
+        print()
+
+    def show_underperformers(self, threshold: float = 0.3) -> None:
+        """Показать неэффективных агентов"""
+        under = self.scoreboard.get_underperformers(threshold=threshold)
+
+        print(f"\n⚠️  UNDERPERFORMERS (value_score < {threshold})")
+        print("-" * 70)
+
+        if not under:
+            print("  No underperformers found!")
+        else:
+            for metrics in under:
+                print(f"  ❌ {metrics.agent_id:25s} | "
+                      f"value: {metrics.value_score:.2f} | "
+                      f"efficiency: {metrics.cost_efficiency:.2f} | "
+                      f"debates: {metrics.debates_participated}")
+
+        print()
+
+    def show_agent_details(self, agent_id: str) -> None:
+        """Показать детальную информацию об агенте"""
+        metrics = self.scoreboard.get_metrics(agent_id)
+
+        if not metrics:
+            print(f"\n❌ Agent '{agent_id}' not found")
+            return
+
+        print(f"\n📋 AGENT DETAILS: {agent_id}")
+        print("-" * 70)
+
+        print(f"\n📊 Participation:")
+        print(f"  Debates Participated:  {metrics.debates_participated}")
+        print(f"  Approved:             {metrics.debates_approved}")
+        print(f"  Rejected:             {metrics.debates_rejected}")
+
+        print(f"\n📈 Performance:")
+        print(f"  Consensus Achieved:   {metrics.consensus_achieved:.2%}")
+        print(f"  Value Score:          {metrics.value_score:.2f}")
+        print(f"  Cost Efficiency:      {metrics.cost_efficiency:.2f}")
+        print(f"  Veto Rate:            {metrics.veto_rate:.2%}")
+
+        print(f"\n💰 Resources:")
+        print(f"  Avg Tokens/Debate:    {metrics.avg_tokens_per_debate:.0f}")
+        print(f"  Total Tokens:         {metrics.total_tokens_used:,}")
+        print(f"  Avg Response Time:    {metrics.avg_response_time:.2f}s")
+
+        print(f"\n📅 Timeline:")
+        print(f"  First Seen:  {metrics.first_seen}")
+        print(f"  Last Seen:   {metrics.last_seen}")
+
+        if not metrics.is_active:
+            print(f"\n❌ STATUS: DISABLED")
+            print(f"  Reason:   {metrics.disabled_reason}")
+            print(f"  At:       {metrics.disabled_at}")
+        else:
+            print(f"\n✅ STATUS: ACTIVE")
+
+        print()
+
+    def show_leaderboard(self) -> None:
+        """Показать полный leaderboard"""
+        all_metrics = list(self.scoreboard._metrics.values())
+        sorted_metrics = sorted(
+            all_metrics,
+            key=lambda m: m.cost_efficiency,
+            reverse=True
+        )
+
+        print(f"\n📊 FULL LEADERBOARD ({len(sorted_metrics)} agents)")
+        print("=" * 70)
+        print(f"{'Rank':<5} {'Agent':<25} {'Value':<7} {'Eff':<7} {'Debates':<8} {'Status':<7}")
+        print("-" * 70)
+
+        for i, metrics in enumerate(sorted_metrics, 1):
+            status = "Active" if metrics.is_active else "Disabled"
+            print(f"{i:<5} {metrics.agent_id:<25} "
+                  f"{metrics.value_score:<7.2f} "
+                  f"{metrics.cost_efficiency:<7.2f} "
+                  f"{metrics.debates_participated:<8} "
+                  f"{status:<7}")
+
+        print()
+
+
+# =============================================================================
+# INTEGRATION WITH DebateStateMachine
+# =============================================================================
+
+class ScoreboardIntegration:
+    """
+    Интеграция Scoreboard с DebateStateMachine
+
+    Автоматически записывает метрики после каждого дебата.
+    """
+
+    def __init__(self, scoreboard: Scoreboard):
+        self.scoreboard = scoreboard
+
+    def record_debate_outcome(
+        self,
+        debate_id: str,
+        participants: List[str],
+        outcome: Dict[str, Any]
+    ) -> None:
+        """
+        Записать результаты дебата для всех участников
+
+        Args:
+            debate_id: ID дебата
+            participants: Список ID участников
+            outcome: Результат дебата
+        """
+        consensus = outcome.get("consensus_score", 0.5)
+        verdict = outcome.get("verdict", "unknown")
+
+        for agent_id in participants:
+            # Индивидуальный outcome для каждого агента
+            agent_outcome = {
+                "consensus_score": consensus,
+                "tokens_used": outcome.get(f"{agent_id}_tokens", 1000),
+                "response_time": outcome.get(f"{agent_id}_time", 5.0),
+                "verdict": verdict,
+                "value_score": outcome.get("value_score", 0.5),
+                "veto_applied": outcome.get(f"{agent_id}_veto", False),
+                "debate_id": debate_id
+            }
+
+            self.scoreboard.record_debate(agent_id, agent_outcome)
+
+
+# =============================================================================
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
@@ -487,7 +719,7 @@ _global_scoreboard: Optional[Scoreboard] = None
 
 
 def get_scoreboard() -> Scoreboard:
-    """Get global Scoreboard"""
+    """Получить глобальный Scoreboard"""
     global _global_scoreboard
     if _global_scoreboard is None:
         _global_scoreboard = Scoreboard()
@@ -495,13 +727,13 @@ def get_scoreboard() -> Scoreboard:
 
 
 def record_agent_performance(agent_id: str, outcome: Dict[str, Any]) -> AgentMetrics:
-    """Record agent performance"""
+    """Записать производительность агента"""
     scoreboard = get_scoreboard()
     return scoreboard.record_debate(agent_id, outcome)
 
 
 def get_agent_metrics(agent_id: str) -> Optional[AgentMetrics]:
-    """Get agent metrics"""
+    """Получить метрики агента"""
     scoreboard = get_scoreboard()
     return scoreboard.get_metrics(agent_id)
 
@@ -512,9 +744,110 @@ __all__ = [
     "DebateOutcome",
     "ScoreboardConfig",
     "Scoreboard",
-    "VerdictType",
+    "ScoreboardDashboard",
+    "ScoreboardIntegration",
     # Convenience
     "get_scoreboard",
     "record_agent_performance",
     "get_agent_metrics"
 ]
+
+
+# =============================================================================
+# TESTS
+# =============================================================================
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+
+    print("=" * 70)
+    print("AGENT SCOREBOARD TESTS")
+    print("=" * 70)
+
+    # Очистка тестовых файлов
+    import os
+    test_metrics_file = "memory/test_agent_scoreboard.json"
+    test_history_file = "memory/test_agent_metrics_history.jsonl"
+
+    if os.path.exists(test_metrics_file):
+        os.remove(test_metrics_file)
+    if os.path.exists(test_history_file):
+        os.remove(test_history_file)
+
+    # Тест 1: Инициализация
+    print("\n[Test 1] Initialization...")
+    config = ScoreboardConfig(
+        metrics_file=test_metrics_file,
+        history_file=test_history_file,
+        min_debates_for_evaluation=3  # Для тестов
+    )
+    scoreboard = Scoreboard(config)
+    print(f"  ✓ Scoreboard created")
+
+    # Тест 2: Запись дебатов
+    print("\n[Test 2] Recording debates...")
+    for i in range(10):
+        scoreboard.record_debate("security_expert", {
+            "consensus_score": 0.8 + (i % 3) * 0.1,
+            "tokens_used": 1000 + i * 100,
+            "response_time": 2.0 + i * 0.1,
+            "verdict": "approved" if i % 2 == 0 else "approved_with_risks",
+            "value_score": 0.7 + (i % 4) * 0.1,
+            "veto_applied": i == 5
+        })
+
+    metrics = scoreboard.get_metrics("security_expert")
+    assert metrics.debates_participated == 10
+    assert metrics.value_score > 0.5
+    print(f"  ✓ Recorded 10 debates")
+    print(f"    Value score: {metrics.value_score:.2f}")
+    print(f"    Cost efficiency: {metrics.cost_efficiency:.2f}")
+
+    # Тест 3: Dashboard
+    print("\n[Test 3] Dashboard...")
+    dashboard = ScoreboardDashboard(scoreboard)
+    dashboard.show_agent_details("security_expert")
+
+    # Тест 4: Top performers
+    print("\n[Test 4] Top performers...")
+    scoreboard.record_debate("performance_guru", {
+        "consensus_score": 0.9,
+        "tokens_used": 500,
+        "response_time": 1.5,
+        "verdict": "approved",
+        "value_score": 0.95
+    })
+    dashboard.show_top_performers(limit=3)
+
+    # Тест 5: Disable underperformer
+    print("\n[Test 5] Disable underperformer...")
+    scoreboard.record_debate("low_performer", {
+        "consensus_score": 0.2,
+        "tokens_used": 5000,
+        "response_time": 10.0,
+        "verdict": "rejected",
+        "value_score": 0.1
+    })
+    # Добавляем ещё чтобы преодолеть порог
+    for _ in range(config.min_debates_for_evaluation):
+        scoreboard.record_debate("low_performer", {
+            "consensus_score": 0.2,
+            "tokens_used": 5000,
+            "response_time": 10.0,
+            "verdict": "rejected",
+            "value_score": 0.1
+        })
+
+    metrics = scoreboard.get_metrics("low_performer")
+    print(f"  Low performer is_active: {metrics.is_active}")
+    print(f"  Low performer disabled_reason: {metrics.disabled_reason}")
+
+    print("\n" + "=" * 70)
+    print("All tests passed!")
+    print("=" * 70)
+
+    # Cleanup
+    if os.path.exists(test_metrics_file):
+        os.remove(test_metrics_file)
+    if os.path.exists(test_history_file):
+        os.remove(test_history_file)

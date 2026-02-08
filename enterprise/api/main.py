@@ -20,7 +20,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 # Import Archon components
-from mat import CircuitBreaker, SiegeMode, ProjectCurator, DebatePipeline, Scoreboard
+from mat import CircuitBreaker, SiegeMode, ProjectCurator, DebatePipeline, Scoreboard, LLMRouter
 from mat.circuit_breaker import AutonomyLevel, OperationType
 from mat.siege_mode import SiegeState, SiegeTrigger
 from enterprise.rbac import RBAC, Role, Permission, get_rbac
@@ -86,7 +86,16 @@ async def lifespan(app: FastAPI):
         _siege_mode = SiegeMode(circuit_breaker=_circuit_breaker, curator=_project_curator)
         logger.info("[ArchonAI] SiegeMode initialized")
 
-        _debate_pipeline = DebatePipeline()
+        # Initialize LLM Router for DebatePipeline
+        llm_router = None
+        try:
+            llm_router = LLMRouter(quality_preference="balanced")
+            logger.info("[ArchonAI] LLMRouter initialized with balanced quality preference")
+        except Exception as e:
+            logger.warning(f"[ArchonAI] LLMRouter initialization failed: {e}")
+            logger.info("[ArchonAI] DebatePipeline will run in fallback mode")
+
+        _debate_pipeline = DebatePipeline(llm_router=llm_router)
         logger.info("[ArchonAI] DebatePipeline initialized")
 
         _scoreboard = Scoreboard()
@@ -119,9 +128,59 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Archon AI API",
-    description="Enterprise AI Operating System with T0-T3 security architecture",
+    description="""
+    ## Enterprise AI Operating System with T0-T3 Security Architecture
+
+    Archon AI is a Constraint-Oriented Adaptive System (COAS) for multi-agent intelligence
+    with architectural safety guarantees.
+
+    ### Features
+    - **Circuit Breaker**: 4-level autonomy system (GREEN/AMBER/RED/BLACK)
+    - **Siege Mode**: Full autonomy when host is offline
+    - **Debate Pipeline**: Multi-agent code review with LLM integration
+    - **RBAC**: Role-based access control with multi-tenant support
+    - **Audit Logger**: Tamper-evident logging with hash chaining
+
+    ### LLM Integration
+    - 14+ models across 7 providers (OpenAI, Anthropic, Google, Groq, xAI, GLM, HuggingFace, Cerebras)
+    - Automatic model selection by task type
+    - Fallback logic for reliability
+
+    ### Quick Start
+    1. Set API keys in environment variables (see .env.example)
+    2. Start a debate: POST /api/v1/debate/start
+    3. Check autonomy level: GET /api/v1/circuit_breaker/status
+    """,
     version="0.1.0",
     lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_tags=[
+        {
+            "name": "health",
+            "description": "Health check and system status"
+        },
+        {
+            "name": "circuit_breaker",
+            "description": "Autonomy level management and human activity tracking"
+        },
+        {
+            "name": "siege_mode",
+            "description": "Offline autonomy mode activation and management"
+        },
+        {
+            "name": "debate",
+            "description": "Multi-agent code review with LLM integration"
+        },
+        {
+            "name": "rbac",
+            "description": "Role-based access control"
+        },
+        {
+            "name": "audit",
+            "description": "Audit log querying and verification"
+        }
+    ]
 )
 
 # CORS middleware
@@ -176,9 +235,38 @@ class SiegeStatusResponse(BaseModel):
 
 class DebateStartRequest(BaseModel):
     """Start debate request"""
-    code: str
-    requirements: str
-    file_path: Optional[str] = None
+    code: str = Field(
+        ...,
+        description="Code to review",
+        examples=["def add(a, b): return a + b"]
+    )
+    requirements: str = Field(
+        ...,
+        description="Requirements for the code",
+        examples=["Create a function that adds two numbers"]
+    )
+    file_path: Optional[str] = Field(
+        None,
+        description="Optional file path for context",
+        examples=["src/math.py"]
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "code": "def add(a, b): return a + b",
+                    "requirements": "Create a function that adds two numbers",
+                    "file_path": "src/math.py"
+                },
+                {
+                    "code": "def process_user_input(user_input):\n    query = f\"SELECT * FROM users WHERE name = '{user_input}'\"\n    return execute_query(query)",
+                    "requirements": "Create a function to query users by name",
+                    "file_path": "src/users.py"
+                }
+            ]
+        }
+    }
 
 
 class RoleAssignRequest(BaseModel):
@@ -204,7 +292,13 @@ async def get_current_user(
 # Health & Status Routes
 # =============================================================================
 
-@app.get("/", response_model=Dict[str, str])
+@app.get(
+    "/",
+    response_model=Dict[str, str],
+    tags=["health"],
+    summary="Root endpoint",
+    description="Returns API information and documentation links"
+)
 async def root():
     """Root endpoint"""
     return {
@@ -215,7 +309,33 @@ async def root():
     }
 
 
-@app.get("/health", response_model=HealthResponse)
+@app.get(
+    "/health",
+    response_model=HealthResponse,
+    tags=["health"],
+    summary="Health check",
+    description="Check the health status of all Archon AI components",
+    responses={
+        200: {
+            "description": "All components healthy",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "healthy",
+                        "version": "0.1.0",
+                        "timestamp": "2026-02-07T12:00:00",
+                        "components": {
+                            "circuit_breaker": "ready",
+                            "siege_mode": "ready",
+                            "debate_pipeline": "ready",
+                            "llm_router": "ready"
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
 async def health_check():
     """Health check endpoint"""
     components = {}
@@ -237,7 +357,35 @@ async def health_check():
 # Circuit Breaker Routes
 # =============================================================================
 
-@app.get("/api/v1/circuit_breaker/status")
+@app.get(
+    "/api/v1/circuit_breaker/status",
+    tags=["circuit_breaker"],
+    summary="Get circuit breaker status",
+    description="Returns current autonomy level, permissions, and system state",
+    responses={
+        200: {
+            "description": "Circuit breaker status",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "current_level": "GREEN",
+                        "level_emoji": "🟢",
+                        "human_minutes_away": 0.0,
+                        "system_state": {
+                            "last_human_activity": "2026-02-07T12:00:00",
+                            "minutes_since_contact": 0.0
+                        },
+                        "permissions": {
+                            "can_execute_code": True,
+                            "can_modify_system": True
+                        },
+                        "history": []
+                    }
+                }
+            }
+        }
+    }
+)
 async def get_circuit_breaker_status():
     """Get current circuit breaker status"""
     if _circuit_breaker is None:
@@ -255,7 +403,25 @@ async def get_circuit_breaker_status():
     return status
 
 
-@app.post("/api/v1/circuit_breaker/record_activity")
+@app.post(
+    "/api/v1/circuit_breaker/record_activity",
+    tags=["circuit_breaker"],
+    summary="Record human activity",
+    description="Records human activity and resets autonomy countdown to GREEN",
+    responses={
+        200: {
+            "description": "Activity recorded successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "recorded",
+                        "action": "manual_review"
+                    }
+                }
+            }
+        }
+    }
+)
 async def record_human_activity(request: RecordActivityRequest):
     """Record human activity (resets autonomy countdown)"""
     if _circuit_breaker is None:
@@ -274,7 +440,12 @@ async def record_human_activity(request: RecordActivityRequest):
     return {"status": "recorded", "action": request.action}
 
 
-@app.get("/api/v1/circuit_breaker/history")
+@app.get(
+    "/api/v1/circuit_breaker/history",
+    tags=["circuit_breaker"],
+    summary="Get circuit breaker history",
+    description="Returns the history of autonomy level transitions"
+)
 async def get_circuit_breaker_history():
     """Get circuit breaker level transition history"""
     if _circuit_breaker is None:
@@ -371,7 +542,48 @@ async def get_curator_status():
 # Debate Pipeline Routes
 # =============================================================================
 
-@app.post("/api/v1/debate/start")
+@app.post(
+    "/api/v1/debate/start",
+    tags=["debate"],
+    summary="Start a code review debate",
+    description="""
+    Starts a multi-agent debate to review code using LLM integration.
+
+    **Debate Phases:**
+    1. DRAFT - Builder proposes/improves code
+    2. SIEGE - Skeptic finds vulnerabilities
+    3. FORTIFY - Builder addresses concerns
+    4. JUDGMENT - Auditor makes final verdict
+
+    **Verdicts:**
+    - `approved` - Code is safe and functional
+    - `approved_with_risks` - Code works but has documented issues
+    - `needs_review` - Code needs changes
+    - `rejected` - Code is unsafe or doesn't meet requirements
+    """,
+    responses={
+        200: {
+            "description": "Debate completed successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "verdict": "approved",
+                        "confidence": 0.85,
+                        "consensus_score": 0.78,
+                        "justification": "Code is safe, well-structured, and meets requirements. No security vulnerabilities found.",
+                        "final_code": "def add(a: int, b: int) -> int:\n    return a + b",
+                        "vulnerabilities_found": [],
+                        "recommendations": ["Consider adding type hints for better clarity"],
+                        "states_count": 4
+                    }
+                }
+            }
+        },
+        503: {
+            "description": "DebatePipeline not initialized or LLM unavailable"
+        }
+    }
+)
 async def start_debate(request: DebateStartRequest):
     """Start a new debate"""
     if _debate_pipeline is None:

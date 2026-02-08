@@ -28,6 +28,16 @@ from enterprise.config import settings
 from enterprise.event_bus import EventBus, EventType
 from enterprise.gateway_bridge import GatewayBridge
 
+# Secure bridge with kernel integration
+# Add kernel path for imports
+kernel_path = Path(__file__).parent.parent / "kernel"
+sys.path.insert(0, str(kernel_path))
+
+from kernel.openclaw_integration import create_secure_bridge
+from kernel.openclaw_integration import IntegrationConfig
+from kernel.execution_kernel import KernelConfig
+from kernel.dynamic_circuit_breaker import CircuitBreakerConfig
+
 # Configure logging
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper()),
@@ -51,9 +61,19 @@ class ArchonService:
 
     def __init__(self):
         self.event_bus = EventBus(persist_events=settings.audit_enabled)
-        self.gateway_bridge = GatewayBridge(
-            ws_url=settings.openclaw_gateway_url,
-            event_bus=self.event_bus
+
+        # Create integration config for secure bridge
+        integration_config = IntegrationConfig()
+        integration_config.ws_url = settings.openclaw_gateway_url
+        integration_config.auth_token = settings.openclaw_gateway_token
+        integration_config.enable_audit = settings.audit_enabled
+        integration_config.kernel_environment = settings.environment
+        integration_config.enable_circuit_breaker = settings.circuit_breaker_enabled
+
+        # Use secure bridge with kernel validation
+        self.gateway_bridge = create_secure_bridge(
+            integration_config=integration_config,
+            event_bus=self.event_bus,
         )
         self._running = False
         self._shutdown_event = asyncio.Event()
@@ -140,7 +160,7 @@ class ArchonService:
     def _print_banner(self):
         """Print startup banner."""
         console.print(Panel.fit(
-            "[bold cyan]Archon AI[/bold cyan] [dim]🏛️[/dim]\n"
+            "[bold cyan]Archon AI[/bold cyan] [dim](Enterprise)[/dim]\n"
             f"[dim]Version {settings.app_version}[/dim]\n"
             f"[green]Environment: {settings.environment}[/green]",
             border_style="cyan"
@@ -154,32 +174,32 @@ class ArchonService:
 
         table.add_row(
             "Event Bus",
-            "✓ Running",
+            "[+] Running",
             f"Subscribers: {len(self.event_bus._subscribers)}"
         )
         table.add_row(
             "Gateway Bridge",
-            "✓ Running",
+            "[+] Running",
             f"WS URL: {settings.openclaw_gateway_url}"
         )
         table.add_row(
             "Execution Contract",
-            "✓ Ready",
+            "[+] Ready",
             "4 profiles: GREEN/AMBER/RED/BLACK"
         )
         table.add_row(
             "Circuit Breaker",
-            "✓ Enabled" if settings.circuit_breaker_enabled else "○ Disabled",
+            "[+] Enabled" if settings.circuit_breaker_enabled else "[-] Disabled",
             f"Base: {settings.circuit_breaker_base_dir}"
         )
         table.add_row(
             "Audit",
-            "✓ Enabled" if settings.audit_enabled else "○ Disabled",
+            "[+] Enabled" if settings.audit_enabled else "[-] Disabled",
             f"Retention: {settings.audit_retention_days} days"
         )
         table.add_row(
             "Multi-tenant",
-            "✓ Enabled" if settings.multi_tenant_enabled else "○ Disabled",
+            "[+] Enabled" if settings.multi_tenant_enabled else "[-] Disabled",
             f"Max: {settings.max_tenants} tenants"
         )
 

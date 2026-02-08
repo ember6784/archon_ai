@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     # ==========================================================================
     openclaw_gateway_url: str = "ws://localhost:18789"
     openclaw_gateway_timeout: int = 30
+    openclaw_gateway_token: Optional[str] = None
 
     # ==========================================================================
     # LLM PROVIDERS

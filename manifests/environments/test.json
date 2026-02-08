@@ -1,0 +1,69 @@
+{
+  "version": "1.0.0",
+  "description": "Testing environment overrides - mocked operations and relaxed constraints",
+
+  "domains": {
+    "system": {
+      "enabled": true,
+      "priority": 20,
+      "mock_mode": true
+    },
+    "trading": {
+      "enabled": true,
+      "priority": 10,
+      "mock_mode": true,
+      "paper_trading": true
+    },
+    "analysis": {
+      "enabled": true,
+      "priority": 15
+    }
+  },
+
+  "operations": {
+    "exec_code": {
+      "risk_level": 0.1,
+      "debate_required": false,
+      "human_approval_required": false,
+      "mock_execution": true
+    },
+
+    "trade_execute": {
+      "risk_level": 0.1,
+      "debate_required": false,
+      "human_approval_required": false,
+      "paper_trading_only": true
+    },
+
+    "network_request": {
+      "risk_level": 0.1,
+      "debate_required": false,
+      "mock_response": true
+    },
+
+    "*": {
+      "debate_required": false,
+      "human_approval_required": false
+    }
+  },
+
+  "mocking": {
+    "enabled": true,
+    "mock_external_apis": true,
+    "mock_filesystem": false,
+    "preserve_state": true
+  },
+
+  "testing": {
+    "allow_forbidden_patterns_for_testing": false,
+    "verbose_assertions": true,
+    "capture_all_logs": true
+  },
+
+  "logging": {
+    "level": "DEBUG",
+    "verbose": true,
+    "log_all_decisions": true,
+    "log_mock_responses": true
+  }
+}

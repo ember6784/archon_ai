@@ -1,0 +1,61 @@
+// OpenClaw Gateway Configuration for @quant_dev_ai_bot
+// 
+// Copy this file to: claw/config/default.json5
+//
+{
+  // Gateway settings
+  gateway: {
+    port: 18789,
+    verbose: true,
+    bind: "0.0.0.0",  // allow external connections (for Docker)
+  },
+  
+  // Telegram channel - @quant_dev_ai_bot
+  channels: {
+    telegram: {
+      enabled: true,
+      botToken: "7898417089:AAHaUj3Ywlsnaqr2e71RjrmJMdNUxMpdu-0",
+      dmPolicy: "pairing",  // require pairing code for new users (security)
+      
+      // Group settings
+      groups: {
+        "*": {
+          requireMention: true,  // bot must be @mentioned in groups
+          allowFrom: [],  // empty = only paired users
+        },
+      },
+    },
+  },
+  
+  // Agent settings
+  agents: {
+    defaults: {
+      model: "claude-sonnet-4-5",  // or "gpt-4o", "gpt-4o-mini"
+      streaming: true,
+      reasoning: true,
+    },
+  },
+  
+  // Message handling
+  messages: {
+    inbound: {
+      debounceMs: 2000,  // batch rapid messages
+    },
+    prefixes: {
+      dm: "",  // no prefix for DMs
+      group: "[{{channel}}/{{peerName}}]",  // prefix in groups
+    },
+  },
+  
+  // Logging
+  logging: {
+    level: "info",
+  },
+  
+  // Sessions
+  sessions: {
+    main: {
+      queueMode: "concurrent",  // or "sequential"
+    },
+  },
+}

@@ -1,0 +1,114 @@
+# Full Stack: Archon AI + OpenClaw Gateway
+# 
+# Usage:
+#   docker-compose -f docker-compose.fullstack.yml up -d
+#
+# Services:
+#   - openclaw-gateway: WebSocket gateway for channels (port 18789)
+#   - archon-api: Archon AI API server (port 8000)
+#   - redis: Cache/session store
+#
+# Environment variables needed:
+#   - TELEGRAM_BOT_TOKEN (optional, for Telegram channel)
+#   - OPENAI_API_KEY (for Archon AI)
+#   - ANTHROPIC_API_KEY (for Archon AI)
+
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  openclaw-gateway:
+    build:
+      context: ./claw
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "18789:18789"
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      # Add other channel tokens as needed
+    volumes:
+      - openclaw_data:/data
+      - ./claw/config:/config:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:18789/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    command: >
+      sh -c "pnpm gateway:start --port 18789 --verbose"
+
+  archon-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - OPENCLAW_GATEWAY_URL=ws://openclaw-gateway:18789
+      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=INFO
+      # LLM API Keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+    volumes:
+      - archon_data:/app/data
+      - archon_audit:/app/audit
+    depends_on:
+      openclaw-gateway:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    command: >
+      sh -c "python -m enterprise.api.main"
+
+  # Optional: pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: unless-stopped
+    ports:
+      - "5050:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@archon.local
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    profiles:
+      - debug
+
+volumes:
+  redis_data:
+  openclaw_data:
+  archon_data:
+  archon_audit:
+  pgadmin_data:
+
+networks:
+  default:
+    name: archon_network

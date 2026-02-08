@@ -1,0 +1,90 @@
+# Archon AI - Development Docker Compose
+# =======================================
+# Use this for local development with hot-reload
+
+version: '3.8'
+
+services:
+  # Development API with hot-reload
+  archon-api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: archon_ai_api_dev
+    ports:
+      - "8000:8000"
+    environment:
+      # API Keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      
+      # Development settings
+      - API_RELOAD=true
+      - LOG_LEVEL=DEBUG
+      - LOG_FORMAT=text
+      
+      # Test databases
+      - POSTGRES_HOST=postgres
+      - REDIS_HOST=redis
+    volumes:
+      # Mount source code for hot-reload
+      - ./mat:/app/mat
+      - ./enterprise:/app/enterprise
+      - ./openclaw:/app/openclaw
+      - ./tests:/app/tests
+    depends_on:
+      - postgres
+      - redis
+    restart: on-failure
+    networks:
+      - archon-dev-network
+
+  # PostgreSQL for testing
+  postgres:
+    image: postgres:15-alpine
+    container_name: archon_postgres_dev
+    environment:
+      - POSTGRES_DB=archon_ai_dev
+      - POSTGRES_USER=archon
+      - POSTGRES_PASSWORD=dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+    networks:
+      - archon-dev-network
+
+  # Redis for testing
+  redis:
+    image: redis:7-alpine
+    container_name: archon_redis_dev
+    ports:
+      - "6380:6379"
+    networks:
+      - archon-dev-network
+
+  # pgAdmin for database management (optional)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: archon_pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@archon.ai
+      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_CONFIG_SERVER_MODE=False
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - archon-dev-network
+    profiles:
+      - tools
+
+volumes:
+  postgres-dev-data:
+
+networks:
+  archon-dev-network:
+    driver: bridge

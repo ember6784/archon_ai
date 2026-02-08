@@ -1,0 +1,76 @@
+{
+  "version": "1.0.0",
+  "description": "Production environment overrides - maximum security and validation",
+
+  "domains": {
+    "system": {
+      "enabled": true,
+      "priority": 20
+    },
+    "trading": {
+      "enabled": true,
+      "priority": 10
+    },
+    "analysis": {
+      "enabled": true,
+      "priority": 15
+    }
+  },
+
+  "operations": {
+    "write_file": {
+      "risk_level": 0.3,
+      "debate_required": true,
+      "human_approval_required": false
+    },
+
+    "exec_code": {
+      "risk_level": 0.95,
+      "debate_required": true,
+      "human_approval_required": true,
+      "required_checks": ["rbac", "ast_sanitizer", "debate", "audit", "human_approval"]
+    },
+
+    "delete_file": {
+      "risk_level": 0.9,
+      "human_approval_required": true,
+      "debate_required": true
+    },
+
+    "trade_execute": {
+      "risk_level": 0.95,
+      "debate_required": true,
+      "human_approval_required": true
+    },
+
+    "network_request": {
+      "risk_level": 0.7,
+      "debate_required": true,
+      "audit_required": true
+    }
+  },
+
+  "enforcement": {
+    "fail_closed": true,
+    "audit_fail_blocks": true,
+    "circuit_breaker_enforced": true
+  },
+
+  "circuit_breaker": {
+    "autonomy_level": "GREEN",
+    "require_human_confirmation_for": ["RED", "BLACK"]
+  },
+
+  "logging": {
+    "level": "INFO",
+    "verbose": false,
+    "log_all_decisions": true,
+    "log_to_external": true
+  },
+
+  "alerting": {
+    "enabled": true,
+    "channels": ["webhook", "telegram"],
+    "critical_operations": ["exec_code", "trade_execute", "delete_file"]
+  }
+}
