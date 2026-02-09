@@ -12,6 +12,7 @@ import asyncio
 import json
 import logging
 import uuid
+from pathlib import Path
 
 try:
     import websockets
@@ -20,7 +21,119 @@ try:
 except ImportError:
     WEBSOCKETS_AVAILABLE = False
 
+try:
+    import nacl.signing
+    import nacl.encoding
+    import base64
+    NACL_AVAILABLE = True
+except ImportError:
+    NACL_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
+
+
+class DeviceAuth:
+    """
+    Device Authentication using Ed25519 signatures.
+
+    Generates and manages Ed25519 key pairs for device authentication
+    with OpenClaw Gateway.
+    """
+
+    def __init__(self, key_path: Optional[str] = None):
+        if not NACL_AVAILABLE:
+            raise ImportError("PyNaCl is required for device authentication. Install with: pip install pynacl")
+
+        if key_path and Path(key_path).exists():
+            self._load_keys(key_path)
+        else:
+            self._generate_keys()
+            if key_path:
+                self._save_keys(key_path)
+
+    def _generate_keys(self):
+        """Generate new Ed25519 key pair."""
+        self.signing_key = nacl.signing.SigningKey.generate()
+        self.verify_key = self.signing_key.verify_key
+        logger.debug("[DeviceAuth] Generated new Ed25519 key pair")
+
+    def _load_keys(self, key_path: str):
+        """Load keys from file."""
+        from pathlib import Path
+        path = Path(key_path)
+        if not path.exists():
+            raise FileNotFoundError(f"Key file not found: {key_path}")
+
+        # For simplicity, store as base64 encoded raw bytes
+        # In production, use proper key management
+        with open(path, 'rb') as f:
+            data = f.read().decode().strip()
+
+        # Assume format: private_key\npublic_key
+        lines = data.split('\n')
+        if len(lines) != 2:
+            raise ValueError("Invalid key file format")
+
+        private_raw = base64.urlsafe_b64decode(lines[0])
+        public_raw = base64.urlsafe_b64decode(lines[1])
+
+        self.signing_key = nacl.signing.SigningKey(private_raw)
+        self.verify_key = nacl.signing.VerifyKey(public_raw)
+        logger.debug("[DeviceAuth] Loaded keys from file")
+
+    def _save_keys(self, key_path: str):
+        """Save keys to file."""
+        from pathlib import Path
+        path = Path(key_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        private_b64 = base64.urlsafe_b64encode(self.signing_key.encode()).decode()
+        public_b64 = base64.urlsafe_b64encode(self.verify_key.encode()).decode()
+
+        with open(path, 'w') as f:
+            f.write(f"{private_b64}\n{public_b64}")
+        logger.debug(f"[DeviceAuth] Saved keys to {key_path}")
+
+    def sign_payload(self, payload: str) -> str:
+        """
+        Sign a payload string and return base64-encoded signature.
+
+        Args:
+            payload: String to sign
+
+        Returns:
+            Base64-encoded detached signature
+        """
+        signature = self.signing_key.sign(payload.encode(), encoder=nacl.encoding.RawEncoder)
+        return base64.urlsafe_b64encode(signature).decode()
+
+    def get_public_key_raw(self) -> str:
+        """
+        Get the public key as base64-encoded raw bytes.
+
+        Returns:
+            Base64-encoded public key
+        """
+        raw = self.verify_key.encode(encoder=nacl.encoding.RawEncoder)
+        return base64.urlsafe_b64encode(raw).decode()
+
+    def verify_signature(self, payload: str, signature_b64: str) -> bool:
+        """
+        Verify a signature against a payload.
+
+        Args:
+            payload: Original payload
+            signature_b64: Base64-encoded signature
+
+        Returns:
+            True if signature is valid
+        """
+        try:
+            signature = base64.urlsafe_b64decode(signature_b64)
+            self.verify_key.verify(payload.encode(), signature)
+            return True
+        except Exception:
+            return False
 
 
 class GatewayState(Enum):
@@ -88,6 +201,7 @@ class GatewayConfig:
     reconnect: bool = True
     reconnect_delay: float = 5.0
     tick_interval: float = 15.0  # heartbeat interval from gateway
+    device_key_path: Optional[str] = None  # Path to store/load device keys
 
 
 class GatewayClientV3:
@@ -108,7 +222,7 @@ class GatewayClientV3:
                 "websockets package is required. "
                 "Install with: pip install websockets"
             )
-        
+
         self.config = config or GatewayConfig()
         self._state = GatewayState.DISCONNECTED
         self._ws: Optional[WebSocketClientProtocol] = None
@@ -119,7 +233,18 @@ class GatewayClientV3:
         self._tick_task: Optional[asyncio.Task] = None
         self._device_token: Optional[str] = None
         self._protocol_version: int = 3
-        
+
+        # Initialize device authentication
+        self._device_auth = None
+        if NACL_AVAILABLE:
+            try:
+                self._device_auth = DeviceAuth(self.config.device_key_path)
+                logger.info("[GatewayV3] Device authentication enabled")
+            except Exception as e:
+                logger.warning(f"[GatewayV3] Failed to initialize device auth: {e}")
+        else:
+            logger.warning("[GatewayV3] PyNaCl not available, device auth disabled")
+
         logger.info(f"[GatewayV3] Initialized for {self.config.url}")
     
     @property
@@ -325,16 +450,16 @@ class GatewayClientV3:
         if auth:
             params["auth"] = auth
 
-        # Add device info if we have a nonce
-        # Note: Full device auth requires crypto signing (publicKey, signature)
-        # For --allow-unconfigured mode, we can skip device auth entirely
-        # Only send device object if we have proper signing capability
-        if nonce and os.getenv("OPENCLAW_DEVICE_PUBLIC_KEY") and os.getenv("OPENCLAW_DEVICE_PRIVATE_KEY"):
-            # TODO: Implement proper device signing
+        # Add device authentication if available
+        # Uses Ed25519 signing to prevent replay attacks
+        if nonce and self._device_auth:
+            payload_to_sign = nonce  # Challenge from gateway
             params["device"] = {
                 "id": self.config.client_id,
-                "nonce": nonce,
-                "signedAt": ts
+                "publicKey": self._device_auth.get_public_key_raw(),
+                "signature": self._device_auth.sign_payload(payload_to_sign),
+                "signedAt": ts,
+                "nonce": nonce
             }
 
         message = GatewayMessage(

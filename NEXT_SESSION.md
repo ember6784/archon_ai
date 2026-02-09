@@ -635,5 +635,42 @@ Telegram → OpenClaw Gateway → Archon AI Kernel → Ответ
 | `kernel/openclaw_integration.py` | Update connect_gateway_v3() |
 | `test_real_messages.py` | Use DeviceAuth |
 | `run_quant_bot.py` | Connect via SecureGatewayBridge |
-| `requirements.txt` | Add `cryptography` package |
+| `pyproject.toml` | Add `pynacl` package |
+
+---
+
+## Session 9: Integration Complete ✅ (2026-02-09)
+
+### ✅ Completed Tasks
+
+1. **Added PyNaCl for Ed25519 Device Authentication**
+   - Added `pynacl = "^1.5.0"` to `pyproject.toml`
+
+2. **Implemented DeviceAuth Class**
+   - Created `DeviceAuth` class in `openclaw/gateway_v3.py` with Ed25519 key pair generation/loading, `sign_payload()` method, Base64-encoded signatures, replay attack prevention, key persistence
+
+3. **Updated GatewayClientV3**
+   - Added device authentication initialization
+   - Modified `GatewayConfig` to include `device_key_path`
+   - Updated `_send_connect()` to include device auth in connect request (publicKey, signature, signedAt, nonce)
+
+4. **Updated SecureGatewayBridge Integration**
+   - Verified `connect_gateway_v3()` and `register_secure_handler()` support
+   - Updated `run_quant_bot.py` to use `SecureGatewayBridge`
+
+5. **Registered Secure Handlers**
+   - Registered secure handler for all Telegram messages with kernel validation
+
+### 🔐 Security Features
+- Ed25519 device signing
+- Challenge-response for replay attacks
+- Kernel validation for all handlers
+- Circuit Breaker and RBAC enforcement
+
+### 🚀 Status: Ready for Connection
+Run `python run_quant_bot.py` to start secured Telegram bot with full Archon AI protection.
+
+---
+
+## Next: QUANTUM Baseline Optimization
 

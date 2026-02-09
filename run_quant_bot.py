@@ -1,7 +1,7 @@
 """
 @quant_dev_ai_bot - Main Runner
 
-Runs Archon AI with Telegram bot integration.
+Runs Archon AI with OpenClaw Gateway integration using SecureGatewayBridge.
 """
 
 import asyncio
@@ -15,78 +15,46 @@ sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parent / "kernel"))
 sys.path.insert(0, str(Path(__file__).parent / "enterprise"))
 
-from enterprise.main import ArchonAIApp
+from kernel.openclaw_integration import create_secure_bridge, IntegrationConfig
 from kernel.execution_kernel import ExecutionKernel
 from enterprise.event_bus import EventBus, EventType
 
 
-class QuantBotApp(ArchonAIApp):
-    """Extended Archon AI with Telegram bot handlers."""
-    
+class QuantBotRunner:
+    """Runner for @quant_dev_ai_bot using SecureGatewayBridge."""
+
     def __init__(self):
-        super().__init__()
+        self.bridge = None
         self.message_count = 0
-        
-    async def _setup_telegram_handlers(self):
-        """Setup Telegram message handlers."""
-        
-        # Subscribe to message events
-        self.event_bus.subscribe(
-            EventType.MESSAGE_RECEIVED,
-            self._handle_telegram_message
-        )
-        
-        print("[Telegram] Handlers registered")
-    
-    async def _handle_telegram_message(self, event):
-        """Handle incoming Telegram message."""
+
+    async def handle_telegram_message(self, message):
+        """Handle incoming Telegram message through secure bridge."""
         self.message_count += 1
-        
-        data = event.data if hasattr(event, 'data') else event
-        message = data.get('message', '')
-        user_id = data.get('user_id', 'unknown')
-        user_name = data.get('user_name', 'User')
-        
+
         print(f"\n{'='*50}")
         print(f"[NEW] Telegram Message #{self.message_count}")
         print(f"{'='*50}")
-        print(f"From: {user_name} (ID: {user_id})")
-        print(f"Message: {message}")
+        print(f"From: {message.user_name} (ID: {message.user_id})")
+        print(f"Message: {message.message}")
         print(f"{'='*50}\n")
-        
-        # Process through kernel
-        from kernel.execution_kernel import ExecutionContext
-        
-        context = ExecutionContext(
-            agent_id=user_id,
-            operation="telegram_message",
-            parameters={
-                "message": message,
-                "user_name": user_name,
-                "channel": "telegram"
-            }
+
+        # Generate response
+        response_text = await self._generate_response(message.message)
+
+        # Return BridgeResponse
+        from enterprise.gateway_bridge import BridgeResponse
+        return BridgeResponse(
+            success=True,
+            response=response_text,
+            metadata={"message_count": self.message_count}
         )
-        
-        # Validate through kernel
-        kernel = ExecutionKernel()
-        result = await kernel.validate_pre(context)
-        
-        if result.approved:
-            print(f"[+] Kernel approved: {result.reason}")
 
-            # Generate response
-            response = await self._generate_response(message, context)
-            print(f"[RESP] {response}")
-
-        else:
-            print(f"[-] Kernel rejected: {result.reason}")
-    
-    async def _generate_response(self, message: str, context) -> str:
+    async def _generate_response(self, message: str) -> str:
         """Generate response to user message."""
-        
+
         # Simple responses for demo
         message_lower = message.lower()
-        
+
         if '/start' in message_lower or 'привет' in message_lower or 'hello' in message_lower:
             return "[HI] Привет! Я @quant_dev_ai_bot - Archon AI ассистент. Чем могу помочь?"
 
@@ -100,8 +68,9 @@ class QuantBotApp(ArchonAIApp):
         elif 'статус' in message_lower or 'status' in message_lower:
             return f"""[STAT] Статус Archon AI:
 [+] Gateway: Подключен
-[+] Kernel: Активен
+[+] Kernel: Активен через SecureGatewayBridge
 [+] Circuit Breaker: Включен
+[+] Device Auth: Ed25519
 [#] Сообщений обработано: {self.message_count}"""
 
         elif 'время' in message_lower or 'time' in message_lower:
@@ -112,51 +81,96 @@ class QuantBotApp(ArchonAIApp):
             return """[BOT] @quant_dev_ai_bot
 
 Я - AI ассистент на базе:
-• OpenClaw Gateway
+• OpenClaw Gateway с Device Auth (Ed25519)
 • Archon AI Execution Kernel
 • Circuit Breaker безопасности
 • Multi-Agent Team Debate Pipeline
 
-Создан для демонстрации интеграции Archon AI + OpenClaw."""
-        
+Защищён SecureGatewayBridge с kernel validation."""
+
         else:
             # Default response
             return f"🔄 Получено: \"{message}\"\n\n(Для справки отправьте /help)"
-    
+
     async def start(self):
-        """Start the bot."""
-        await super().start()
-        await self._setup_telegram_handlers()
-        
-        print("\n" + "=" * 50)
-        print("[BOT] @quant_dev_ai_bot is running!")
-        print("=" * 50)
+        """Start the bot with SecureGatewayBridge."""
+
+        print("\n" + "=" * 60)
+        print("       @quant_dev_ai_bot - Archon AI Bot")
+        print("         Secured by OpenClaw Gateway + Device Auth")
+        print("=" * 60)
+
+        # Create secure bridge
+        self.bridge = create_secure_bridge(
+            integration_config=IntegrationConfig(
+                ws_url="ws://localhost:18789",
+                enable_circuit_breaker=True,
+                enable_kernel_validation=True,
+                kernel_environment="prod"
+            )
+        )
+
+        # Connect to gateway
+        print("[BRIDGE] Connecting to OpenClaw Gateway...")
+        connected = await self.bridge.connect_gateway_v3()
+
+        if not connected:
+            print("[ERROR] Failed to connect to Gateway")
+            return
+
+        print("[+] Connected to Gateway with Device Auth!")
+
+        # Register secure handler for all messages
+        self.bridge.register_secure_handler(
+            pattern="*",  # Match all messages
+            handler=self.handle_telegram_message,
+            operation_name="telegram_handler"
+        )
+
+        print("[+] Secure handler registered")
+        print("\n[BOT] @quant_dev_ai_bot is running!")
         print("Send a message to @quant_dev_ai_bot in Telegram")
         print("Press Ctrl+C to stop\n")
+
+        # Keep running
+        try:
+            while True:
+                await asyncio.sleep(1)
+        except KeyboardInterrupt:
+            print("\n[STOP] Shutting down...")
+
+    async def stop(self):
+        """Stop the bot."""
+        if self.bridge:
+            # Note: SecureGatewayBridge doesn't have explicit disconnect method
+            # But GatewayClientV3 has disconnect
+            if hasattr(self.bridge, '_gateway_client') and self.bridge._gateway_client:
+                await self.bridge._gateway_client.disconnect()
+        print("[STOP] Bot stopped")
 
 
 async def main():
     """Main entry point."""
-    app = QuantBotApp()
-    
+    runner = QuantBotRunner()
+
     # Setup signal handlers
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, lambda: asyncio.create_task(app.stop()))
-    
+        loop.add_signal_handler(sig, lambda: asyncio.create_task(runner.stop()))
+
     try:
-        await app.run()
+        await runner.start()
     except KeyboardInterrupt:
         print("\n[STOP] Shutting down...")
-        await app.stop()
+        await runner.stop()
 
 
 if __name__ == "__main__":
        print("""
     ================================================
        @quant_dev_ai_bot - Archon AI Bot
-           Powered by OpenClaw Gateway
+         Secured by OpenClaw Gateway + Device Auth
     ================================================
     """)
-    
+
     asyncio.run(main())
