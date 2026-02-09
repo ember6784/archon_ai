@@ -156,7 +156,11 @@ async def main():
     # Setup signal handlers
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, lambda: asyncio.create_task(runner.stop()))
+        try:
+            loop.add_signal_handler(sig, lambda: asyncio.create_task(runner.stop()))
+        except NotImplementedError:
+            # Windows doesn't support signal handlers
+            pass
 
     try:
         await runner.start()
@@ -173,4 +177,5 @@ if __name__ == "__main__":
     ================================================
     """)
 
+if __name__ == "__main__":
     asyncio.run(main())
