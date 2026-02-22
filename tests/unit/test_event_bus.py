@@ -2,9 +2,11 @@
 Unit tests for EventBus
 """
 
-import pytest
 import asyncio
-from enterprise.event_bus import EventBus, EventType, Event
+
+import pytest
+
+from enterprise.event_bus import Event, EventBus, EventType
 
 
 @pytest.fixture
@@ -57,21 +59,21 @@ class TestEventBus:
     """Test EventBus functionality."""
 
     @pytest.mark.asyncio
-    async def test_subscribe_and_publish(self, event_bus):
+    async def test_subscribe_and_publish(self, started_event_bus):
         """Test subscribing to and publishing events."""
         received_events = []
 
         async def handler(event):
             received_events.append(event)
 
-        event_bus.subscribe(EventType.AGENT_STARTED, handler)
+        started_event_bus.subscribe(EventType.AGENT_STARTED, handler)
 
         test_event = Event.create(
             EventType.AGENT_STARTED,
             {"agent_id": "test"}
         )
 
-        await event_bus.publish(test_event)
+        await started_event_bus.publish(test_event)
         await asyncio.sleep(0.1)  # Give time for processing
 
         assert len(received_events) == 1
@@ -96,7 +98,7 @@ class TestEventBus:
         assert len(received_events) == 0
 
     @pytest.mark.asyncio
-    async def test_event_filtering(self, event_bus):
+    async def test_event_filtering(self, started_event_bus):
         """Test event filtering."""
         received_events = []
 
@@ -107,19 +109,19 @@ class TestEventBus:
         def filter_func(event):
             return event.user_id is not None
 
-        event_bus.subscribe(
+        started_event_bus.subscribe(
             EventType.MESSAGE_RECEIVED,
             handler,
             filter_func=filter_func
         )
 
         # Event without user_id - should be filtered
-        await event_bus.publish(
+        await started_event_bus.publish(
             Event.create(EventType.MESSAGE_RECEIVED, {"message": "test1"})
         )
 
         # Event with user_id - should pass
-        await event_bus.publish(
+        await started_event_bus.publish(
             Event.create(
                 EventType.MESSAGE_RECEIVED,
                 {"message": "test2"},
@@ -157,7 +159,7 @@ class TestEventBus:
         assert "result2" in handler_results
 
     @pytest.mark.asyncio
-    async def test_error_isolation(self, event_bus):
+    async def test_error_isolation(self, started_event_bus):
         """Test that handler errors don't affect other handlers."""
         results = []
 
@@ -167,10 +169,10 @@ class TestEventBus:
         async def working_handler(event):
             results.append("success")
 
-        event_bus.subscribe(EventType.AGENT_STARTED, failing_handler)
-        event_bus.subscribe(EventType.AGENT_STARTED, working_handler)
+        started_event_bus.subscribe(EventType.AGENT_STARTED, failing_handler)
+        started_event_bus.subscribe(EventType.AGENT_STARTED, working_handler)
 
-        await event_bus.publish(
+        await started_event_bus.publish(
             Event.create(EventType.AGENT_STARTED, {})
         )
         await asyncio.sleep(0.1)

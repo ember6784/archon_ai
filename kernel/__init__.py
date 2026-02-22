@@ -14,6 +14,7 @@ from .execution_kernel import (
     ExecutionKernel,
     ExecutionContext,
     KernelConfig,
+    FastPathConfig,
     ResourceLimits,
     CircuitState,
     get_kernel,
@@ -93,6 +94,13 @@ from .intent_contract import (
     DELETE_FILE_CONTRACT,
 )
 
+from .ast_sanitizer import (
+    AstSanitizer,
+    SanitizationResult,
+    SanitizationViolation,
+    sanitize_code,
+)
+
 from .formal_invariants import (
     Z3InvariantChecker,
     Z3_AVAILABLE,
@@ -112,6 +120,7 @@ __all__ = [
     "ExecutionKernel",
     "ExecutionContext",
     "KernelConfig",
+    "FastPathConfig",
     "ResourceLimits",
     "CircuitState",
     "get_kernel",
@@ -179,6 +188,11 @@ __all__ = [
     "WRITE_FILE_CONTRACT",
     "EXEC_CODE_CONTRACT",
     "DELETE_FILE_CONTRACT",
+    # AST Sanitizer
+    "AstSanitizer",
+    "SanitizationResult",
+    "SanitizationViolation",
+    "sanitize_code",
     # Formal Verification
     "Z3InvariantChecker",
     "Z3_AVAILABLE",

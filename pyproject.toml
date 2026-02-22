@@ -9,6 +9,7 @@ packages = [
     { include = "enterprise" },
     { include = "mat" },
     { include = "openclaw" },
+    { include = "kernel" },
 ]
 
 [tool.poetry.dependencies]
