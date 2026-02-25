@@ -13,7 +13,7 @@ import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from kernel.openclaw_integration import (
+from enterprise.openclaw_integration import (
     IntegrationConfig,
     SecureHandler,
     SecureGatewayBridge,

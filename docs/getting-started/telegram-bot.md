@@ -249,7 +249,7 @@ bridge.register_secure_handler(
 | `test_gateway.py` | Connection test |
 | `openclaw_config.json5` | Bot configuration |
 | `openclaw/gateway_v3.py` | Gateway client |
-| `kernel/openclaw_integration.py` | Secure bridge |
+| `enterprise/openclaw_integration.py` | Secure bridge |
 
 ---
 

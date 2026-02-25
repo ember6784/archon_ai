@@ -122,7 +122,7 @@ Other Integration:           68 PASSED
 |------|---------|
 | `openclaw/gateway_v3.py` | WebSocket client with Protocol v3 |
 | `openclaw/__init__.py` | Exports including DeviceAuth |
-| `kernel/openclaw_integration.py` | SecureGatewayBridge |
+| `enterprise/openclaw_integration.py` | SecureGatewayBridge |
 | `kernel/execution_kernel.py` | Core validation logic |
 | `kernel/invariants.py` | Safety invariants |
 | `run_quant_bot.py` | Main bot script |

@@ -1,4 +1,4 @@
-# archon/kernel/openclaw_integration.py
+# archon/enterprise/openclaw_integration.py
 """
 OpenClaw Integration - Gateway Bridge + ExecutionKernel
 
@@ -18,18 +18,17 @@ The integration ensures ALL message handling goes through the kernel.
 
 import asyncio
 import logging
-from typing import Any, Callable, Dict, List, Optional
 from dataclasses import dataclass
+from typing import Callable, Optional
 
-from .execution_kernel import ExecutionKernel, KernelConfig, ExecutionContext, CircuitState
-from .dynamic_circuit_breaker import DynamicCircuitBreaker, get_circuit_breaker
-from .validation import ValidationResult, DecisionReason, Severity
-from .middleware import OpenClawMiddleware, create_middleware
+from kernel.dynamic_circuit_breaker import DynamicCircuitBreaker, get_circuit_breaker
+from kernel.execution_kernel import ExecutionContext, ExecutionKernel, KernelConfig
+from kernel.invariants import combined_safety_invariant
+from kernel.middleware import OpenClawMiddleware, create_middleware
 
-from enterprise.gateway_bridge import GatewayBridge, ChannelMessage, BridgeResponse
-from enterprise.event_bus import EventBus, EventType, Event
+from enterprise.event_bus import Event, EventBus, EventType
+from enterprise.gateway_bridge import BridgeResponse, ChannelMessage, GatewayBridge
 
-# Import new GatewayClientV3
 from openclaw import GatewayClientV3, GatewayConfig
 
 
@@ -222,7 +221,6 @@ class SecureGatewayBridge(GatewayBridge):
             self.kernel = ExecutionKernel(config=kernel_config)
 
             # Add safety invariants
-            from .invariants import combined_safety_invariant
             self.kernel.add_invariant(combined_safety_invariant, "combined_safety")
 
         # Initialize parent
@@ -450,7 +448,7 @@ def create_secure_bridge(
         Configured SecureGatewayBridge
 
     Usage:
-        from kernel.openclaw_integration import create_secure_bridge
+        from enterprise.openclaw_integration import create_secure_bridge
 
         bridge = create_secure_bridge()
         await bridge.start()

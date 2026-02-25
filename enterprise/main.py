@@ -16,8 +16,6 @@ Components:
 import asyncio
 import logging
 import signal
-import sys
-from pathlib import Path
 
 import uvicorn
 from rich.console import Console
@@ -27,16 +25,7 @@ from rich.table import Table
 from enterprise.config import settings
 from enterprise.event_bus import EventBus, EventType
 from enterprise.gateway_bridge import GatewayBridge
-
-# Secure bridge with kernel integration
-# Add kernel path for imports
-kernel_path = Path(__file__).parent.parent / "kernel"
-sys.path.insert(0, str(kernel_path))
-
-from kernel.openclaw_integration import create_secure_bridge
-from kernel.openclaw_integration import IntegrationConfig
-from kernel.execution_kernel import KernelConfig
-from kernel.dynamic_circuit_breaker import CircuitBreakerConfig
+from enterprise.openclaw_integration import IntegrationConfig, create_secure_bridge
 
 # Configure logging
 logging.basicConfig(

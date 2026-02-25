@@ -32,16 +32,19 @@ all_ok &= check_import("openclaw", ["GatewayClientV3", "GatewayConfig", "Gateway
 
 print("\n2. Kernel Components:")
 all_ok &= check_import("kernel", [
-    "GatewayClientV3", 
-    "GatewayConfig",
-    "create_secure_bridge",
-    "SecureGatewayBridge",
-    "IntegrationConfig"
+    "ExecutionKernel",
+    "DynamicCircuitBreaker",
+    "CircuitState"
 ])
 
 print("\n3. Enterprise Components:")
 all_ok &= check_import("enterprise.gateway_bridge", ["GatewayBridge", "ChannelMessage", "BridgeResponse"])
 all_ok &= check_import("enterprise.event_bus", ["EventBus", "EventType"])
+all_ok &= check_import("enterprise.openclaw_integration", [
+    "create_secure_bridge",
+    "SecureGatewayBridge",
+    "IntegrationConfig"
+])
 
 print("\n4. MAT Components:")
 all_ok &= check_import("mat", ["DebatePipeline", "CircuitBreaker", "LLMRouter"])

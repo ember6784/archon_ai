@@ -62,15 +62,7 @@ from .middleware import (
 
 from .manifests import ManifestLoader, get_loader, ManifestLoadError
 
-from .openclaw_integration import (
-    IntegrationConfig,
-    GatewayClientV3,
-    GatewayConfig,
-    SecureHandler,
-    SecureGatewayBridge,
-    create_secure_bridge,
-    create_middleware_bridge,
-)
+
 
 from .intent_contract import (
     BaseContract,
@@ -160,14 +152,6 @@ __all__ = [
     "ManifestLoader",
     "get_loader",
     "ManifestLoadError",
-    # OpenClaw Integration
-    "IntegrationConfig",
-    "GatewayClientV3",
-    "GatewayConfig",
-    "SecureHandler",
-    "SecureGatewayBridge",
-    "create_secure_bridge",
-    "create_middleware_bridge",
     # Intent Contracts
     "BaseContract",
     "IntentContract",
