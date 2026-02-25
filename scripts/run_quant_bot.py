@@ -11,9 +11,9 @@ import signal
 from pathlib import Path
 
 # Add paths
-sys.path.insert(0, str(Path(__file__).parent))
-sys.path.insert(0, str(Path(__file__).parent / "kernel"))
-sys.path.insert(0, str(Path(__file__).parent / "enterprise"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent / "kernel"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "enterprise"))
 
 from kernel.openclaw_integration import create_secure_bridge, IntegrationConfig
 from kernel.execution_kernel import ExecutionKernel

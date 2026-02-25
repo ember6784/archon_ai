@@ -26,7 +26,7 @@ except ImportError:
     DOTENV_AVAILABLE = False
     print("⚠️  python-dotenv not installed. Install with: pip install python-dotenv")
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 class Colors:
