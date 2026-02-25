@@ -6,16 +6,30 @@
 
 ---
 
-## 🚨 Текущий статус интеграции
+## 📚 Documentation
 
-| Компонент | Статус | Детали |
-|-----------|--------|--------|
-| OpenClaw Gateway | ✅ Запущен | Порт 18789 |
-| Telegram бот @quant_dev_ai_bot | ✅ Работает | User 554557965 paired |
-| Archon AI Kernel | ✅ Готов | ExecutionKernel + Circuit Breaker |
-| Python Gateway Client | ❌ В разработке | Требуется Ed25519 device signing |
+**Full documentation:** [docs/README.md](docs/README.md)
 
-Подробнее: [TELEGRAM_INTEGRATION_STATUS.md](TELEGRAM_INTEGRATION_STATUS.md)
+| Section | Description |
+|---------|-------------|
+| [Getting Started](docs/getting-started/quick-start.md) | Quick start guide |
+| [Telegram Bot](docs/getting-started/telegram-bot.md) | @quant_dev_ai_bot setup |
+| [Architecture](docs/README.md#architecture) | 5 Barriers, Kernel, Security |
+| [API Reference](docs/reference/api.md) | REST API docs |
+| [Commands](docs/reference/commands.md) | Command reference |
+
+---
+
+## 🚨 Integration Status
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| OpenClaw Gateway | ✅ Running | Port 18789 |
+| Telegram Bot | ✅ Working | @quant_dev_ai_bot |
+| Archon AI Kernel | ✅ Ready | ExecutionKernel + Circuit Breaker |
+| Device Auth | ✅ Implemented | Ed25519 signing |
+
+Details: [docs/integration/status.md](docs/integration/status.md)
 
 ---
 
@@ -341,7 +355,8 @@ archon_ai/
 ├── .env.example             # Environment configuration
 ├── pyproject.toml           # Poetry dependencies
 ├── README.md                # This file
-└── NEXT_SESSION.md          # Development roadmap
+├── AGENTS.md                # Agent guide (for AI assistants)
+└── docs/                    # Documentation (see docs/README.md)
 ```
 
 ---
