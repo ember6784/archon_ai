@@ -323,7 +323,11 @@ class MaxOperationSize(BaseContract):
 
 
 class ProtectedPathCheck(BaseContract):
-    """Contract that blocks access to protected paths."""
+    """
+    Contract that blocks access to protected paths.
+    
+    V3.0: Uses SecurePathValidator with inode-level verification.
+    """
 
     PROTECTED_PATHS = [
         "/etc/", "/sys/", "/proc/", "/root/", "/boot/",
@@ -332,8 +336,11 @@ class ProtectedPathCheck(BaseContract):
         ".env", ".pem", ".key"
     ]
 
-    def __init__(self, path_parameter: str = "path"):
+    def __init__(self, path_parameter: str = "path", base_dir: Optional[str] = None):
         self.path_parameter = path_parameter
+        self.base_dir = base_dir
+        from .invariants import get_path_validator
+        self._validator = get_path_validator()
 
     def check_pre(
         self,
@@ -352,7 +359,26 @@ class ProtectedPathCheck(BaseContract):
                 check_name="protected_path_check"
             )
 
-        # Check against protected paths
+        # V3.0: Используем SecurePathValidator с inode-проверкой
+        validation_result = self._validator.validate(path, self.base_dir)
+        
+        if not validation_result.is_valid:
+            return ValidationResult(
+                approved=False,
+                context=context,
+                reason=DecisionReason.PRE_CONDITION_FAILED,
+                message=f"Access to protected path blocked: {path} ({validation_result.reason})",
+                severity=Severity.CRITICAL,
+                details={
+                    "path": path,
+                    "resolved_path": validation_result.resolved_path,
+                    "reason": validation_result.reason,
+                    "inode": validation_result.inode,
+                },
+                check_name="protected_path_check"
+            )
+
+        # Legacy fallback: дополнительная string-based проверка
         for protected in self.PROTECTED_PATHS:
             if path.startswith(protected) or protected in path:
                 return ValidationResult(
@@ -369,7 +395,7 @@ class ProtectedPathCheck(BaseContract):
             approved=True,
             context=context,
             reason=DecisionReason.APPROVED,
-            message=f"Path check passed: {path}",
+            message=f"Path check passed: {path} -> {validation_result.resolved_path}",
             check_name="protected_path_check"
         )
 
