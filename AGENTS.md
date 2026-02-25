@@ -421,8 +421,8 @@ make docker-dev
 
 Archon AI integrates with OpenClaw Gateway (WebSocket) to receive messages from channels (Telegram, WhatsApp, Slack, etc.).
 
-**📖 Full Guide:** [GATEWAY_INTEGRATION.md](GATEWAY_INTEGRATION.md)  
-**🚀 Bot Quick Start:** [QUANT_BOT_QUICKSTART.md](QUANT_BOT_QUICKSTART.md)
+**📖 Full Guide:** [docs/integration/gateway.md](docs/integration/gateway.md)  
+**🚀 Bot Quick Start:** [docs/getting-started/telegram-bot.md](docs/getting-started/telegram-bot.md)
 
 ### Quick Start with .env
 
@@ -474,7 +474,7 @@ make run-bot
 - `docs/1.md` — 5 Barriers architecture
 - `docs/2.md` — Execution Chokepoint RFC
 - `docs/3.md` — Security review
-- `README.md` — Main project documentation
+- `docs/README.md` — Full documentation index
 
 ---
 
