@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Dict, Any, List
 
 # Add archon_ai to path
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from openclaw import GatewayClientV3, GatewayConfig
 from openclaw.gateway_v3 import GatewayMessage
