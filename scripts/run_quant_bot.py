@@ -5,19 +5,15 @@ Runs Archon AI with OpenClaw Gateway integration using SecureGatewayBridge.
 """
 
 import asyncio
-import sys
-import os
 import signal
+import sys
 from pathlib import Path
 
 # Add paths
 sys.path.insert(0, str(Path(__file__).parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent / "kernel"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "enterprise"))
 
-from kernel.openclaw_integration import create_secure_bridge, IntegrationConfig
-from kernel.execution_kernel import ExecutionKernel
-from enterprise.event_bus import EventBus, EventType
+from enterprise.openclaw_integration import IntegrationConfig, create_secure_bridge
 
 
 class QuantBotRunner:

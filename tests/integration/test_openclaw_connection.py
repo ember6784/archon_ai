@@ -16,7 +16,7 @@ enterprise_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..
 sys.path.insert(0, kernel_path)
 sys.path.insert(0, enterprise_path)
 
-from kernel.openclaw_integration import create_secure_bridge, IntegrationConfig
+from enterprise.openclaw_integration import IntegrationConfig, create_secure_bridge
 from enterprise.event_bus import EventBus
 
 

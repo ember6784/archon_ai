@@ -20,24 +20,20 @@ Usage:
 """
 
 import json
-import time
 import logging
-from enum import Enum, auto
+import time
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from enum import Enum, auto
 from pathlib import Path
-from typing import Dict, List, Optional, Callable, Any
-from collections import deque
+from typing import Any, Callable, Dict, List, Optional
+
+from kernel.execution_kernel import CircuitState
 
 logger = logging.getLogger(__name__)
 
-
-class AutonomyLevel(Enum):
-    """Уровни автономности системы"""
-    GREEN = "green"      # Полный доступ
-    AMBER = "amber"      # Ограниченный доступ
-    RED = "red"          # Только канареечные деплои
-    BLACK = "black"      # Только мониторинг
+AutonomyLevel = CircuitState
 
 
 class OperationType(Enum):

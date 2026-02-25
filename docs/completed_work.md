@@ -131,7 +131,7 @@ Kernel type: ExecutionKernel
 ```
 [OpenClaw Gateway]
        ↓ WebSocket
-[SecureGatewayBridge] ← kernel/openclaw_integration.py
+[SecureGatewayBridge] ← enterprise/openclaw_integration.py
        ↓
 [ExecutionKernel] ← intent_contract, invariants, validation
        ↓

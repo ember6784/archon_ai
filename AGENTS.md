@@ -461,7 +461,7 @@ make run-bot
 | Component | Purpose | Location |
 |-----------|---------|----------|
 | `GatewayClientV3` | WebSocket client with Protocol v3 handshake | `openclaw/gateway_v3.py` |
-| `SecureGatewayBridge` | Security layer (RBAC, Kernel, Circuit Breaker) | `kernel/openclaw_integration.py` |
+| `SecureGatewayBridge` | Security layer (RBAC, Kernel, Circuit Breaker) | `enterprise/openclaw_integration.py` |
 | `test_gateway.py` | Quick connection test | Root |
 | `test_real_messages.py` | Real message processing test | Root |
 | `test_end_to_end.py` | Full E2E test with interactive mode | Root |
