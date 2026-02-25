@@ -1,4 +1,4 @@
-# Telegram Bot @quant_dev_ai_bot
+# Telegram Bot Setup
 
 Настройка и использование Telegram бота с Archon AI.
 
@@ -8,7 +8,7 @@
 
 | Parameter | Value |
 |-----------|-------|
-| Bot | @quant_dev_ai_bot |
+| Bot | @your_telegram_bot |
 | Gateway Port | 18789 |
 | Protocol | v3 (Ed25519 device auth) |
 
@@ -46,7 +46,7 @@ python run_quant_bot.py
 
 ### 1. Start in Telegram
 
-1. Open Telegram and find: **@quant_dev_ai_bot**
+1. Open Telegram and find your bot: **@your_telegram_bot**
 2. Send `/start`
 3. You'll receive a **pairing code** (e.g., `ABC123`)
 

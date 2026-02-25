@@ -11,7 +11,7 @@
 | Component | Status | Details |
 |-----------|--------|---------|
 | OpenClaw Gateway | ✅ Running | Port 18789 |
-| Telegram Bot | ✅ Working | @quant_dev_ai_bot |
+| Telegram Bot | ✅ Working | @your_telegram_bot |
 | Pi Agent | ✅ Responding | xai/grok-code-fast-1 |
 | Archon AI Kernel | ✅ Ready | ExecutionKernel + Circuit Breaker |
 | Device Auth | ✅ Implemented | Ed25519 signing |
@@ -23,7 +23,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Telegram (@quant_dev_ai_bot)                │
+│                    Telegram (@your_telegram_bot)                │
 └─────────────────────────────┬───────────────────────────────────┘
                               │
                               ▼
