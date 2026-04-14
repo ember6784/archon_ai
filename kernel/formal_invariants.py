@@ -5,7 +5,7 @@ Formal Verification Invariants with Z3 Solver
 Provides formal verification capabilities using Z3 SMT solver.
 This allows mathematical proofs of security properties.
 
-Based on docs/7.md recommendations for Z3 integration.
+Based on docs/adr/ADR-0007-implementation-priorities.md recommendations for Z3 integration.
 
 Requirements:
     pip install z3-solver

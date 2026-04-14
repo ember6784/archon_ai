@@ -19,19 +19,22 @@
 | Document | Description |
 |----------|-------------|
 | [Vision & Philosophy](vision.md) | Архитектурная философия |
-| [5 Barriers](1.md) | Многоуровневая защита |
-| [Execution Chokepoint](2.md) | RFC по ядру исполнения |
-| [Security Review](3.md) | Анализ безопасности |
-| [Integration Patterns](4.md) | Паттерны интеграции |
-| [Kernel RFC](5.md) | RFC Execution Kernel |
-| [Debate Pipeline](6.md) | Multi-LLM дебаты |
-| [Implementation Priorities](7.md) | Приоритеты разработки |
-| [Analysis & Recommendations](8.md) | Анализ и рекомендации |
+| [ADR Index](adr/README.md) | Architecture Decision Records |
+| [5 Barriers](adr/ADR-0001-enterprise-integration.md) | Многоуровневая защита |
+| [Execution Chokepoint](adr/ADR-0002-execution-chokepoint.md) | RFC по ядру исполнения |
+| [Security Review](adr/ADR-0003-security-review.md) | Анализ безопасности |
+| [Integration Patterns](adr/ADR-0004-integration-patterns.md) | Паттерны интеграции |
+| [Kernel RFC](adr/ADR-0005-kernel-rfc.md) | RFC Execution Kernel |
+| [Debate Pipeline](adr/ADR-0006-debate-pipeline.md) | Multi-LLM дебаты |
+| [Implementation Priorities](adr/ADR-0007-implementation-priorities.md) | Приоритеты разработки |
+| [Analysis & Recommendations](adr/ADR-0008-analysis-recommendations.md) | Анализ и рекомендации |
 
 ### Development
 
 | Document | Description |
 |----------|-------------|
+| [Developer Guide](DEVELOPER_GUIDE.md) | Техническое руководство |
+| [Contributing](CONTRIBUTING.md) | Как помочь проекту |
 | [Testing Guide](testing.md) | Тестирование и бенчмарки |
 | [Security Improvements](development/security-improvements.md) | V3.0 улучшения безопасности |
 | [Completed Work](completed_work.md) | История выполненных задач |

@@ -18,10 +18,22 @@ OpenClaw is a multi-channel AI assistant infrastructure. Archon AI adds a securi
 
 ## Integration Architecture
 
-```
-[Telegram/WhatsApp/Slack/...] → [OpenClaw Gateway] → [SecureGatewayBridge] → [ExecutionKernel] → [MAT/DebatePipeline]
-                                       ↓
-                                 ws://localhost:18789
+```mermaid
+graph LR
+    User[Telegram / WhatsApp / Slack] --> Gateway[OpenClaw Gateway]
+    Gateway --> Bridge[SecureGatewayBridge]
+    Bridge --> Kernel[ExecutionKernel]
+    Kernel --> MAT[MAT / DebatePipeline]
+    
+    subgraph OpenClaw [OpenClaw]
+        Gateway
+    end
+    
+    subgraph ArchonAI [Archon AI]
+        Bridge
+        Kernel
+        MAT
+    end
 ```
 
 ### Layer Breakdown
@@ -36,7 +48,19 @@ OpenClaw is a multi-channel AI assistant infrastructure. Archon AI adds a securi
 
 ---
 
-## What Each Side Contributes
+### 5-Layer Defense Model
+
+```mermaid
+graph BT
+    L5[Barrier 5: Resource Cage] --- L4[Barrier 4: Execution Chokepoint]
+    L4 --- L3[Barrier 3: Static Analysis]
+    L3 --- L2[Barrier 2: Heterogeneous Debate]
+    L2 --- L1[Barrier 1: Intent Contract Validation]
+    
+    style L4 fill:#f96,stroke:#333,stroke-width:2px
+```
+
+### What Each Side Contributes
 
 | OpenClaw provides | Archon AI adds |
 |-------------------|----------------|
