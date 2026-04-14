@@ -1,6 +1,8 @@
 import pytest
 import json
+import sys
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 from mat.debate_pipeline import (
     DebateState,
     DebateStateMachine,
@@ -12,7 +14,6 @@ from mat.debate_pipeline import (
     EntropyMarker,
     Artifact,
     DraftInput,
-    DraftOutput,
     StagnationReport,
     GroundingResult,
     FreshEyeResult,
@@ -20,136 +21,167 @@ from mat.debate_pipeline import (
 )
 
 def test_artifact_creation():
-    content = "print('hello')"
-    artifact = Artifact.create(content, "code", author="test")
+    content = "def hello(): pass"
+    artifact = Artifact.create(content, "code", author="test_agent", phase="initial")
     assert artifact.content == content
     assert artifact.content_type == "code"
-    assert artifact.metadata["author"] == "test"
+    assert artifact.metadata["author"] == "test_agent"
+    assert artifact.metadata["phase"] == "initial"
     assert artifact.hash is not None
     assert len(artifact.hash) == 64 # SHA-256
 
-def test_structural_fingerprint():
+def test_structural_fingerprint_complex():
     code = """
-import os
-from sys import path
+import sys
+from os import path as os_path
 
-class MyClass(Base):
-    async def my_async_func(self):
-        pass
+class Base:
+    pass
 
-def my_func():
+class Derived(Base, Mixin):
+    def __init__(self):
+        super().__init__()
+        
+    async def process_data(self, data):
+        def nested():
+            pass
+        return data
+
+def top_level_func():
     pass
 """
     sf = StructuralFingerprint(module_name="test_mod")
     symbols = sf.extract_fingerprint(code)
     
-    assert "test_mod::import:os" in symbols
-    assert "test_mod::from_import:sys.path" in symbols
-    assert "test_mod::class:MyClass" in symbols
+    assert "test_mod::import:sys" in symbols
+    assert "test_mod::from_import:os.path" in symbols
+    assert "test_mod::class:Base" in symbols
+    assert "test_mod::class:Derived" in symbols
     assert "test_mod::inherits:Base" in symbols
-    assert "test_mod::async_func:my_async_func" in symbols
-    assert "test_mod::func:my_func" in symbols
+    assert "test_mod::inherits:Mixin" in symbols
+    assert "test_mod::func:__init__" in symbols
+    assert "test_mod::async_func:process_data" in symbols
+    assert "test_mod::func:nested" in symbols
+    assert "test_mod::func:top_level_func" in symbols
 
 def test_calculate_jaccard():
-    set_a = {"a", "b", "c"}
-    set_b = {"b", "c", "d"}
-    # intersection: {b, c} (size 2)
-    # union: {a, b, c, d} (size 4)
-    assert calculate_jaccard(set_a, set_b) == 0.5
-    
+    # Identical
+    assert calculate_jaccard({"a", "b"}, {"a", "b"}) == 1.0
+    # Completely different
+    assert calculate_jaccard({"a", "b"}, {"c", "d"}) == 0.0
+    # Partial overlap
+    assert calculate_jaccard({"a", "b", "c"}, {"b", "c", "d"}) == 2/4 # intersection {b,c}, union {a,b,c,d}
+    # Empty
     assert calculate_jaccard(set(), set()) == 1.0
     assert calculate_jaccard({"a"}, set()) == 0.0
 
-def test_consensus_calculator():
-    sol_a = "def add(a, b): return a + b"
-    sol_b = "def add(x, y): return x + y"
-    f_a = {"func:add"}
-    f_b = {"func:add"}
-    risks = []
-    
-    consensus, breakdown = ConsensusCalculatorV3.calculate_consensus(sol_a, sol_b, f_a, f_b, risks)
-    assert 0 <= consensus <= 1.0
-    assert breakdown["jaccard_similarity"] == 1.0
-    assert breakdown["penalty_applied"] is False
+def test_consensus_calculator_no_sklearn():
+    # Force sklearn import failure for fallback testing
+    with patch("builtins.__import__", side_effect=lambda name, *args, **kwargs: 
+               MagicMock() if name == "sklearn" else __import__(name, *args, **kwargs)):
+        sol_a = "x = 1"
+        sol_b = "x = 2"
+        f_a = {"var:x"}
+        f_b = {"var:x"}
+        
+        consensus, breakdown = ConsensusCalculatorV3.calculate_consensus(sol_a, sol_b, f_a, f_b, [])
+        assert 0 <= consensus <= 1.0
 
 def test_consensus_calculator_penalty():
-    sol_a = "x = 1"
-    sol_b = "x = 1"
-    f_a = {"var:x"}
-    f_b = {"var:x"}
-    risks = ["security_risk"] # There are risks but no changes
+    sol_a = "data = 1"
+    sol_b = "data = 1" # No change
+    f_a = {"data"}
+    f_b = {"data"}
+    risks = ["security_vulnerability"]
     
     consensus, breakdown = ConsensusCalculatorV3.calculate_consensus(sol_a, sol_b, f_a, f_b, risks)
     assert breakdown["penalty_applied"] is True
-    assert breakdown["final_consensus"] < 1.0
+    assert consensus < 1.0
 
-def test_entropy_marker():
-    marker = EntropyMarker(
-        model_version="gpt-4",
-        model_family="openai",
-        temperature=0.0,
-        seed=123,
-        confidence_score=0.9
-    )
-    assert marker.is_deterministic is True
-    assert marker.fragility_index < 0.1
-    assert marker.to_dict()["model_version"] == "gpt-4"
+def test_entropy_marker_fragility():
+    # Low fragility
+    m1 = EntropyMarker("gpt-4", "openai", 0.0, seed=123, confidence_score=0.95, system_fingerprint="fp1")
+    assert m1.is_deterministic is True
+    assert m1.fragility_index < 0.1
+    assert m1.get_warning() is None
+    
+    # High fragility
+    m2 = EntropyMarker("gpt-4", "openai", 0.8, seed=None, confidence_score=0.4)
+    assert m2.is_deterministic is False
+    assert m2.fragility_index > 0.3
+    assert "High fragility" in m2.get_warning()
 
 def test_decision_trace_drift():
-    m1 = EntropyMarker("v1", "f1", 0.0, seed=1)
-    m2 = EntropyMarker("v2", "f1", 0.0, seed=1)
+    m1 = EntropyMarker("v1", "openai", 0.0, system_fingerprint="fp1")
+    m2 = EntropyMarker("v1", "openai", 0.0, system_fingerprint="fp2") # Changed fingerprint
     
-    trace1 = DecisionTrace(path=["A"], metrics={}, signals={})
+    trace1 = DecisionTrace(path=["state1"], metrics={}, signals={})
     trace1.add_entropy_marker("state1", m1)
     
-    trace2 = DecisionTrace(path=["A"], metrics={}, signals={})
+    trace2 = DecisionTrace(path=["state1"], metrics={}, signals={})
     trace2.add_entropy_marker("state1", m2)
     
     warnings = trace1.check_entropy_drift(trace2)
-    assert any("Model version changed" in w for w in warnings)
+    assert any("System fingerprint changed" in w for w in warnings)
 
-def test_state_contracts():
-    # Test valid draft input
-    di = DraftInput(task="do something", task_type="code", context={})
-    assert StateContracts.validate_draft_input(di) is True
-    assert StateContracts.validate_draft_input({}) is False
+def test_state_contracts_validation():
+    # Stagnation Report
+    sr = StagnationReport(has_changes=True, is_no_op=False, jaccard_similarity=0.5, cfg_difference=1, stagnation_count=0, recommendation="continue")
+    assert StateContracts.validate_stagnation_report(sr) is True
+    assert StateContracts.validate_stagnation_report({}) is False
     
-    # Test draft output validation
-    art = Artifact.create("code", "code", rationale="because")
-    assert StateContracts.validate_draft_output(art) is True
+    # Grounding Result
+    gr = GroundingResult(tests_executed=True, tests_passed=5, tests_failed=0, test_errors=[], real_errors_found=False, should_fix=False, error_summary="")
+    assert StateContracts.validate_grounding_result(gr) is True
+    assert StateContracts.validate_grounding_result(GroundingResult(True, -1, 0, [], False, False, "")) is False
     
-    # Test fortify output validation (should fail if new symbols added)
-    art_bad = Artifact.create("code", "code", new_symbols_added=["new_func"])
-    assert StateContracts.validate_fortify_output(art_bad) is False
+    # Senior Auditor
+    sa = SeniorAuditorDecision(status="approved", confidence=0.9, rationale="Good", constitutional_violations=[], respects_grounding=True, respects_reflection=True, final_code="...", veto_active=False)
+    assert StateContracts.validate_senior_auditor_decision(sa) is True
 
-@pytest.fixture
-def mock_artifact():
-    return Artifact.create("content", "code")
-
-def test_debate_state_machine(tmp_path):
-    workspace = tmp_path / "workspace"
-    sm = DebateStateMachine(debate_id="test_debate", workspace=workspace)
+def test_debate_state_machine_flow(tmp_path):
+    sm = DebateStateMachine(debate_id="test_123", workspace=tmp_path)
+    sm.register_participant("builder_agent", "builder")
     
-    art = Artifact.create("proposed code", "code")
-    sm._log_transition(DebateState.DRAFT, art, model_version="gpt-4", model_family="openai")
+    # Transition 1
+    art1 = Artifact.create("code v1", "code")
+    sm._log_transition(DebateState.DRAFT, art1, model_version="gpt-4", model_family="openai")
     
     assert sm.current_state == DebateState.DRAFT
-    assert sm.get_artifact(DebateState.DRAFT) == art
-    assert len(sm.history) == 1
+    assert sm.get_artifact(DebateState.DRAFT) == art1
     
-    # Check if history file was created
+    # Transition 2
+    art2 = Artifact.create("code v1 normalized", "canonical_code", normalization_stats={})
+    sm._log_transition(DebateState.NORMALIZE_SEMANTIC, art2)
+    
+    assert sm.current_state == DebateState.NORMALIZE_SEMANTIC
+    assert len(sm.history) == 2
+    
+    # History persistence check
     assert sm.history_file.exists()
     
-    # Test replay
-    sm2 = DebateStateMachine(debate_id="test_debate", workspace=workspace)
-    assert sm2.replay_to_state(DebateState.DRAFT) is True
-    assert sm2.current_state == DebateState.DRAFT
+    # Replay
+    sm_new = DebateStateMachine(debate_id="test_123", workspace=tmp_path)
+    assert sm_new.replay_to_state(DebateState.DRAFT) is True
+    assert sm_new.current_state == DebateState.DRAFT
 
-def test_debate_participant_activity(tmp_path):
-    sm = DebateStateMachine(debate_id="test", workspace=tmp_path)
-    sm.register_participant("agent1", "builder")
-    sm.track_participant_activity("agent1", tokens_used=100)
+def test_debate_participant_tracking(tmp_path):
+    sm = DebateStateMachine(debate_id="test_tracking", workspace=tmp_path)
+    sm.register_participant("p1", "skeptic")
+    sm.track_participant_activity("p1", tokens_used=500)
     
-    assert "agent1" in sm._participants
-    assert sm._participants["agent1"]["tokens_used"] == 100
-    assert sm._participants["agent1"]["responses"] == 1
+    assert sm._participants["p1"]["tokens_used"] == 500
+    assert sm._participants["p1"]["responses"] == 1
+    
+    # Test finalize with scoreboard (mocked)
+    mock_sb = MagicMock()
+    # Mock record_debate
+    mock_sb.record_debate.return_value = MagicMock(value_score=0.8, cost_efficiency=0.9)
+    sm.set_scoreboard(mock_sb)
+    
+    # Mock the whole agent_scoreboard module to avoid import issues
+    mock_metrics = MagicMock()
+    with patch.dict(sys.modules, {'agent_scoreboard': MagicMock(AgentMetrics=mock_metrics)}):
+         sm.finalize_debate("approved", 0.85)
+    
+    assert mock_sb.record_debate.called

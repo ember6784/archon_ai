@@ -335,7 +335,6 @@ class ExecutionKernel:
                     raise ValueError(f"Invariant violation after execution: {operation}")
 
             self._stats["executed"] += 1
-            self._stats["approved"] += 1
             duration = time.time() - start_time
 
             logger.info(
