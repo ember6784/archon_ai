@@ -2,11 +2,11 @@
 
 ## Overview
 
-This document summarizes the completed implementation work based on docs/7.md and docs/8.md priorities.
+This document summarizes the completed implementation work based on `docs/adr/ADR-0007-implementation-priorities.md` and `docs/adr/ADR-0008-analysis-recommendations.md` priorities.
 
 ## ✅ Completed Tasks
 
-### 1. Performance Benchmarks (Priority #1 from docs/7.md)
+### 1. Performance Benchmarks (Priority #1 from docs/adr/ADR-0007-implementation-priorities.md)
 
 **File:** `tests/integration/test_kernel_perf.py`
 
@@ -26,7 +26,7 @@ This document summarizes the completed implementation work based on docs/7.md an
 - Concurrent access patterns
 - Scaling behavior with payload size
 
-### 2. Z3 Formal Verification (Priority #3 from docs/7.md)
+### 2. Z3 Formal Verification (Priority #3 from docs/adr/ADR-0007-implementation-priorities.md)
 
 **Files:**
 - `kernel/formal_invariants.py` (~500 lines)
@@ -40,7 +40,7 @@ This document summarizes the completed implementation work based on docs/7.md an
 
 **Test Results:** 19 PASSED, 6 skipped (Z3 optional)
 
-### 3. Chaos Injection Tests (Priority #5 from docs/7.md)
+### 3. Chaos Injection Tests (Priority #5 from docs/adr/ADR-0007-implementation-priorities.md)
 
 **File:** `tests/integration/test_chaos_injection.py` (~500 lines)
 
@@ -54,7 +54,7 @@ This document summarizes the completed implementation work based on docs/7.md an
 
 **Test Results:** 19 PASSED
 
-### 4. Trading Domain Contracts (Priority #4 from docs/7.md)
+### 4. Trading Domain Contracts (Priority #4 from docs/adr/ADR-0007-implementation-priorities.md)
 
 **File:** `kernel/trading_contracts.py` (~400 lines)
 **Tests:** `tests/integration/test_trading_contracts.py` (~500 lines)
@@ -91,7 +91,7 @@ RISK_MANAGEMENT_CONTRACT_DEF = {
 
 **Test Results:** 30 PASSED
 
-### 5. SecureGatewayBridge Integration (from docs/8.md)
+### 5. SecureGatewayBridge Integration (from docs/adr/ADR-0008-analysis-recommendations.md)
 
 **File:** `enterprise/main.py`
 
@@ -128,18 +128,13 @@ Kernel type: ExecutionKernel
 
 ### Current Component Flow
 
-```
-[OpenClaw Gateway]
-       ↓ WebSocket
-[SecureGatewayBridge] ← enterprise/openclaw_integration.py
-       ↓
-[ExecutionKernel] ← intent_contract, invariants, validation
-       ↓
-[DynamicCircuitBreaker] ← 4-state autonomy (GREEN/AMBER/RED/BLACK)
-       ↓
-[Trading Contracts] ← SharpeRatio, PositionLimit, Drawdown, Manipulation
-       ↓
-[Handlers] → result back through Bridge
+```mermaid
+graph TD
+    GW[OpenClaw Gateway] -->|WebSocket| SGB[SecureGatewayBridge]
+    SGB -->|Validation| EK[ExecutionKernel]
+    EK -->|Policy| DCB[DynamicCircuitBreaker]
+    DCB -->|Autonomy| TC[Trading Contracts]
+    TC -->|Execution| H[Handlers]
 ```
 
 ### Defense in Depth (5 Barriers)
@@ -182,7 +177,7 @@ Other Integration:           68 PASSED
 - `kernel/__init__.py` - Added exports for new modules
 - `enterprise/main.py` - Integrated SecureGatewayBridge
 
-## Remaining Work (from docs/8.md)
+## Remaining Work (from docs/adr/ADR-0008-analysis-recommendations.md)
 
 ### Fast Path Support (Recommendation from Gemini)
 
@@ -211,6 +206,6 @@ Operations should be scored by risk level:
 
 ## References
 
-- `docs/7.md` - Original priorities
-- `docs/8.md` - Gemini analysis and recommendations
+- `docs/adr/ADR-0007-implementation-priorities.md` - Original priorities
+- `docs/adr/ADR-0008-analysis-recommendations.md` - Gemini analysis and recommendations
 - `docs/testing.md` - Complete testing documentation

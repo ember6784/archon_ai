@@ -29,6 +29,20 @@
 | Archon AI Kernel | ✅ Ready | ExecutionKernel + Circuit Breaker |
 | Device Auth | ✅ Implemented | Ed25519 signing |
 
+### High-Level Flow
+
+```mermaid
+graph TD
+    User[User/Channels] -->|Messages| Gateway[OpenClaw Gateway]
+    Gateway -->|WS v3| Bridge[Secure Gateway Bridge]
+    Bridge -->|Validation| Kernel[Execution Kernel]
+    Kernel -->|Policy| RBAC[RBAC/Circuit Breaker]
+    Kernel -->|Approval| MAT[Multi-Agent Team / MAT]
+    MAT -->|Debate| Debate[Debate Pipeline]
+    Debate -->|Consensus| Kernel
+    Kernel -->|Safe Execution| Env[Environment/Sandbox]
+```
+
 Details: [docs/integration/status.md](docs/integration/status.md)
 
 ---
@@ -589,6 +603,8 @@ This is a research system. Before contributing:
 ## References
 
 - `docs/vision.md` — Philosophy (not engineering)
-- `docs/1.md` — 5 Barriers architecture
-- `docs/2.md` — Execution Chokepoint RFC
-- `docs/3.md` — Security review (this document's critique)
+- `docs/adr/ADR-0001-enterprise-integration.md` — 5 Barriers architecture
+- `docs/adr/ADR-0002-execution-chokepoint.md` — Execution Chokepoint RFC
+- `docs/adr/ADR-0003-security-review.md` — Security review (this document's critique)
+- `docs/DEVELOPER_GUIDE.md` — Developer guide
+- `docs/CONTRIBUTING.md` — Contribution guidelines

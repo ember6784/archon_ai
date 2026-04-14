@@ -1,4 +1,42 @@
-# Kernel Integration: Detailed Design
+# ADR-0006: Debate Pipeline State Machine
+
+## Status
+Accepted
+
+## Context
+The Debate Pipeline is a core component of the MAT (Multi-Agent Team) that ensures code quality and safety through a multi-stage consensus process between different LLM-backed agents (Builder, Skeptic, Auditor).
+
+## Decision: Formal State Machine
+We implement a deterministic state machine to manage the complex interaction between agents.
+
+### State Machine Visualization
+
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT: Builder proposes solution
+    DRAFT --> NORMALIZE_SEMANTIC: Canonicalize logic
+    NORMALIZE_SEMANTIC --> SIEGE: Skeptic attacks
+    SIEGE --> FORTIFY: Builder fixes (constraints!)
+    FORTIFY --> NORMALIZE_SYNTAX: Format (Black/Ruff)
+    NORMALIZE_SYNTAX --> FINAL_ASSAULT: Skeptic verifies fix
+    FINAL_ASSAULT --> FREEZE: Lock artifacts
+    FREEZE --> JUDGMENT: Auditor makes verdict
+    JUDGMENT --> COMPLETE: Final approval
+    
+    state FeedbackLoop {
+        ASSIGN_FIXER --> FIX
+        FIX --> VERIFY
+        VERIFY --> RE_DEBATE
+    }
+    
+    JUDGMENT --> ASSIGN_FIXER: If rejection requires fix
+    RE_DEBATE --> DRAFT
+    COMPLETE --> [*]
+```
+
+---
+
+## Kernel Integration: Detailed Design
 
 ## Integration Point Decision
 

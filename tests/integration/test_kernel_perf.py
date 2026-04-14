@@ -8,7 +8,7 @@ Measures:
 - Memory overhead
 - Fast path vs. validation path performance
 
-Based on docs/7.md recommendations.
+Based on docs/adr/ADR-0007-implementation-priorities.md recommendations.
 """
 
 import pytest

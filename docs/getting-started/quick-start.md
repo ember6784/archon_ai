@@ -107,88 +107,67 @@ python test_end_to_end.py --interactive
 
 ## What Happens When You Send a Message
 
-```
-[Telegram/WhatsApp/Slack]
-        ↓
-[OpenClaw Gateway] ← ws://localhost:18789
-        ↓
-[GatewayClientV3] ← Protocol v3 handshake
-        ↓
-[SecureGatewayBridge]
-        ↓
-    ┌───┴───┬───────────┐
-    ↓       ↓           ↓
- [RBAC] [Circuit   [Kernel]
- Check   Breaker]  Validation
-             ↓
-      [MAT/Debate] (if needed)
-             ↓
-       [Response]
+```mermaid
+graph TD
+    User[Telegram/WhatsApp/Slack] --> Gateway[OpenClaw Gateway]
+    Gateway --> Bridge[SecureGatewayBridge]
+    Bridge --> RBAC[RBAC Check]
+    RBAC --> CB[Circuit Breaker]
+    CB --> Kernel[Execution Kernel]
+    Kernel --> MAT[MAT/Debate]
+    MAT --> Response[Response]
 ```
 
 ---
 
 ## Architecture Overview
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                           USER MESSAGE                                  │
-│                    (Telegram/WhatsApp/Slack/etc.)                       │
-└─────────────────────────────────┬───────────────────────────────────────┘
-                                  │
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      OPENCLAW GATEWAY (claw/)                           │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                  │
-│  │   Telegram   │  │   WhatsApp   │  │    Slack     │  Channels        │
-│  └──────────────┘  └──────────────┘  └──────────────┘                  │
-│                                                                         │
-│  ┌────────────────────────────────────────────────────────────────┐   │
-│  │                    WebSocket Server (18789)                    │   │
-│  │                    Protocol v3 (handshake)                     │   │
-│  └─────────────────────────────────┬──────────────────────────────┘   │
-└────────────────────────────────────┼────────────────────────────────────┘
-                                     │
-                                     ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        ARCHON AI (archon_ai/)                           │
-│                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │                    GatewayClientV3                              │   │
-│  └─────────────────────────────────┬───────────────────────────────┘   │
-│                                    │                                    │
-│                                    ▼                                    │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │                 SecureGatewayBridge                             │   │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │   │
-│  │  │    RBAC     │→│   Circuit   │→│   Execution Kernel      │ │   │
-│  │  │   Check     │  │  Breaker    │  │  - Intent Contracts     │ │   │
-│  │  └─────────────┘  └─────────────┘  │  - Invariants           │ │   │
-│  │                                     │  - Validation           │ │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph UserSpace [User Space]
+        User[User Message]
+    end
+
+    subgraph OpenClaw [OpenClaw Gateway]
+        Channels[Telegram / WhatsApp / Slack]
+        WS[WebSocket Server Port 18789]
+    end
+
+    subgraph ArchonAI [Archon AI]
+        Client[GatewayClientV3]
+        Bridge[SecureGatewayBridge]
+        subgraph Security [Security Layer]
+            RBAC[RBAC]
+            CB[Circuit Breaker]
+            Kernel[Execution Kernel]
+        end
+    end
+
+    User --> Channels
+    Channels --> WS
+    WS --> Client
+    Client --> Bridge
+    Bridge --> RBAC
+    RBAC --> CB
+    CB --> Kernel
 ```
 
 ---
 
 ## Protocol v3 Handshake
 
-```
-Client                              Gateway
-   │                                   │
-   │◄──────── connect.challenge ──────┤
-   │        {nonce, ts}                │
-   │                                   │
-   ├────────── connect ──────────────►│
-   │  {role, scopes, client, device}  │
-   │                                   │
-   │◄────────── hello-ok ─────────────┤
-   │    {protocol, deviceToken}        │
-   │                                   │
-   │◄════════ tick (every 15s) ══════►│
-   │                                   │
-   │◄════════ messages/events ═══════►│
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Gateway
+    Gateway->>Client: connect.challenge {nonce, ts}
+    Client->>Gateway: connect {role, scopes, client, device}
+    Gateway->>Client: hello-ok {protocol, deviceToken}
+    loop Heartbeat
+        Client->>Gateway: tick (every 15s)
+        Gateway->>Client: tick
+    end
+    Note over Client,Gateway: messages/events
 ```
 
 ---

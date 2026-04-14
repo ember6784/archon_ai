@@ -17,18 +17,14 @@ Archon AI is a security-first multi-agent AI operating system. Unlike typical ag
 
 **Security Model: 5 Barriers + Execution Chokepoint**
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  BARRIER 1: Intent Contract Validation (JSON schemas)   │
-├─────────────────────────────────────────────────────────┤
-│  BARRIER 2: Heterogeneous Debate (Multiple LLMs)        │
-├─────────────────────────────────────────────────────────┤
-│  BARRIER 3: Static Analysis (AST parsing)               │
-├─────────────────────────────────────────────────────────┤
-│  BARRIER 4: Execution Chokepoint (CRITICAL - Kernel)    │
-├─────────────────────────────────────────────────────────┤
-│  BARRIER 5: Resource Cage (Docker, seccomp, readonly)   │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph BT
+    L5[Barrier 5: Resource Cage<br/>Docker, seccomp, readonly] --- L4[Barrier 4: Execution Chokepoint<br/>CRITICAL - Kernel]
+    L4 --- L3[Barrier 3: Static Analysis<br/>AST parsing]
+    L3 --- L2[Barrier 2: Heterogeneous Debate<br/>Multiple LLMs]
+    L2 --- L1[Barrier 1: Intent Contract Validation<br/>JSON schemas]
+
+    style L4 fill:#f96,stroke:#333,stroke-width:2px
 ```
 
 ---
@@ -450,10 +446,12 @@ make run-bot
 
 ### Architecture
 
-```
-[Telegram/WhatsApp/Slack] → [OpenClaw Gateway] → [Archon AI GatewayClient] → [SecureGatewayBridge] → [MAT/Kernel]
-                                    ↓
-                              ws://localhost:18789
+```mermaid
+graph LR
+    T[Telegram/WhatsApp/Slack] --> G[OpenClaw Gateway]
+    G --> AC[Archon AI GatewayClient]
+    AC --> SB[SecureGatewayBridge]
+    SB --> K[Kernel / MAT]
 ```
 
 ### Key Components
@@ -471,9 +469,9 @@ make run-bot
 ## Documentation
 
 - `docs/vision.md` — Philosophy and universal laws
-- `docs/1.md` — 5 Barriers architecture
-- `docs/2.md` — Execution Chokepoint RFC
-- `docs/3.md` — Security review
+- `docs/adr/ADR-0001-enterprise-integration.md` — 5 Barriers architecture
+- `docs/adr/ADR-0002-execution-chokepoint.md` — Execution Chokepoint RFC
+- `docs/adr/ADR-0003-security-review.md` — Security review
 - `docs/README.md` — Full documentation index
 
 ---
