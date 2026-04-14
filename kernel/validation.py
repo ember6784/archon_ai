@@ -141,7 +141,7 @@ class ValidationResult:
 
     def should_debate(self) -> bool:
         """Check if this operation requires debate."""
-        return self.reason == DecisionReason.DEBATE_REQUIRED or (
+        return self.reason == DecisionReason.DEBATE_REQUIRED or bool(
             self.approved and
             self.details and
             self.details.get("risk_level", 0) > 0.5

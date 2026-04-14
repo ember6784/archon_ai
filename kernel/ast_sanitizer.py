@@ -29,6 +29,11 @@ BLACKLISTED_FUNCTIONS = {
     "__import__",
     "execfile",
     "input",
+    "builtins.eval",
+    "builtins.exec",
+    "builtins.compile",
+    "builtins.__import__",
+    "builtins.input",
 }
 
 BLACKLISTED_MODULES = {
